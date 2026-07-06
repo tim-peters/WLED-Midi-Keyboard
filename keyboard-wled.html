@@ -233,6 +233,7 @@
     border-radius: 1px;
     transition: background-color 0.04s linear;
     min-width: 1px;
+    cursor: pointer;
   }
   .led.inactive {
     background: #181c20;
@@ -517,6 +518,7 @@ const BASE_LAST_NOTE = BASE_FIRST_NOTE + NUM_KEYS - 1; // 72 = C5
 const MIN_SEND_INTERVAL = 33; // ms → 30 req/s
 const MAX_MONITOR_ENTRIES = 50;
 const MAX_VIS_LEDS = 500;     // Cap for visualization (performance)
+const MAX_FADE_MS = 3000;     // Fade-out slider max (latch mode)
 
 const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
@@ -684,6 +686,37 @@ function buildLedVisuals() {
     const el = document.createElement("div");
     el.className = "led inactive";
     el.title = "LED " + i;
+    el.addEventListener("mousedown", (e) => {
+      if (e.button !== 0) return;
+      const note = getNoteForLedIndex(i);
+      if (note === null) return;
+      if (mouseHeldNote !== null && mouseHeldNote !== note) noteOff(mouseHeldNote);
+      mouseHeldNote = note;
+      noteOn(note, 127);
+      e.preventDefault();
+    });
+    el.addEventListener("mouseover", (e) => {
+      if ((e.buttons & 1) === 0) return;
+      const note = getNoteForLedIndex(i);
+      if (note === null || note === mouseHeldNote) return;
+      if (mouseHeldNote !== null) noteOff(mouseHeldNote);
+      mouseHeldNote = note;
+      noteOn(note, 127);
+    });
+    el.addEventListener("mouseout", (e) => {
+      if ((e.buttons & 1) === 0) return;
+      const note = getNoteForLedIndex(i);
+      if (note === null || note !== mouseHeldNote) return;
+      noteOff(note);
+      mouseHeldNote = null;
+    });
+    el.addEventListener("mouseup", (e) => {
+      if (e.button !== 0) return;
+      const note = getNoteForLedIndex(i);
+      if (note === null || note !== mouseHeldNote) return;
+      noteOff(note);
+      mouseHeldNote = null;
+    });
     dom.ledRow.appendChild(el);
     ledElements.push(el);
   }
@@ -740,6 +773,46 @@ function getNoteSegment(note) {
   const mySize = index < remainder ? segmentSize + 1 : segmentSize;
   return { start: segStart, end: segStart + mySize - 1 };
 }
+
+function getNoteForLedIndex(ledIndex) {
+  if (ledIndex < state.ledStart || ledIndex > state.ledEnd) return null;
+  const firstNote = effectiveFirstNote();
+  const lastNote = effectiveLastNote();
+  const usableLeds = (state.ledEnd - state.ledStart) + 1;
+
+  if (state.whiteKeysOnly) {
+    const whiteKeys = [];
+    for (let n = firstNote; n <= lastNote; n++) {
+      if (isWhiteKey(n)) whiteKeys.push(n);
+    }
+    const numWhite = whiteKeys.length;
+    if (numWhite === 0) return null;
+    const segmentSize = Math.floor(usableLeds / numWhite);
+    const remainder   = usableLeds % numWhite;
+    let segStart = state.ledStart;
+    for (let i = 0; i < numWhite; i++) {
+      const sz = i < remainder ? segmentSize + 1 : segmentSize;
+      const segEnd = segStart + sz - 1;
+      if (ledIndex >= segStart && ledIndex <= segEnd) return whiteKeys[i];
+      segStart = segEnd + 1;
+    }
+    return null;
+  }
+
+  const numNotes = lastNote - firstNote + 1;
+  const segmentSize = Math.floor(usableLeds / numNotes);
+  const remainder   = usableLeds % numNotes;
+  let segStart = state.ledStart;
+  for (let i = 0; i < numNotes; i++) {
+    const sz = i < remainder ? segmentSize + 1 : segmentSize;
+    const segEnd = segStart + sz - 1;
+    if (ledIndex >= segStart && ledIndex <= segEnd) return firstNote + i;
+    segStart = segEnd + 1;
+  }
+  return null;
+}
+
+let mouseHeldNote = null;
 
 /* ============================================================
    Velocity → brightness
@@ -860,7 +933,19 @@ function startFadeLoop() {
     const now = performance.now();
     let dirty = false;
     for (const [note, n] of state.activeNotes) {
-      if (!n.isFading) continue;
+      if (!n.isFading) {
+        if (state.fadeOutMs >= MAX_FADE_MS) continue;
+        n.startBrightness = n.currentBrightness;
+        n.fadeStartTime = now;
+        n.isFading = true;
+        dirty = true;
+        continue;
+      }
+      if (state.fadeOutMs >= MAX_FADE_MS) {
+        n.isFading = false;
+        dirty = true;
+        continue;
+      }
       const elapsed = now - n.fadeStartTime;
       if (elapsed >= state.fadeOutMs) {
         state.activeNotes.delete(note);
@@ -907,6 +992,7 @@ function noteOn(note, velocity) {
 function noteOff(note) {
   const n = state.activeNotes.get(note);
   if (!n) return;
+  if (state.fadeOutMs >= MAX_FADE_MS) return;
   n.startBrightness = n.currentBrightness;
   n.fadeStartTime = performance.now();
   n.isFading = true;
@@ -1051,10 +1137,11 @@ function handleCcMessage(channel, ccNum, ccVal) {
     flashCcCell(dom.ccBrightCell);
   }
   if (matchesCcConfig(channel, ccNum, state.ccFade)) {
-    state.fadeOutMs = Math.round((ccVal / 127) * 3000);
+    state.fadeOutMs = Math.round((ccVal / 127) * MAX_FADE_MS);
     dom.fadeOut.value = state.fadeOutMs;
-    dom.fadeOutVal.textContent = state.fadeOutMs + " ms";
+    dom.fadeOutVal.textContent = state.fadeOutMs >= MAX_FADE_MS ? "max" : state.fadeOutMs + " ms";
     flashCcCell(dom.ccFadeCell);
+    startFadeLoop();
   }
 }
 
@@ -1210,7 +1297,8 @@ function bindUi() {
 
   dom.fadeOut.addEventListener("input", () => {
     state.fadeOutMs = parseInt(dom.fadeOut.value, 10);
-    dom.fadeOutVal.textContent = state.fadeOutMs + " ms";
+    dom.fadeOutVal.textContent = state.fadeOutMs >= MAX_FADE_MS ? "max" : state.fadeOutMs + " ms";
+    startFadeLoop();
   });
   dom.brightness.addEventListener("input", () => {
     state.maxBrightnessPct = parseInt(dom.brightness.value, 10);
@@ -1274,6 +1362,13 @@ function bindUi() {
 function init() {
   buildLedVisuals();
   bindUi();
+  document.addEventListener("mouseup", (e) => {
+    if (e.button !== 0) return;
+    if (mouseHeldNote !== null) {
+      noteOff(mouseHeldNote);
+      mouseHeldNote = null;
+    }
+  });
   updateKeyRangeDisplay();
   renderMonitor();
   updateVisualization();
