@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -312,7 +312,7 @@
   }
   .cors-note .cors-close:hover { color: #e6e8eb; background: transparent; }
 
-  /* MIDI-Monitor (kollabierbar) */
+  /* MIDI monitor (collapsible) */
   details.monitor-details {
     background: #1b1f25;
     border: 1px solid #262b33;
@@ -411,15 +411,15 @@
 </head>
 <body>
   <div id="cors-note" class="cors-note" role="alert">
-    <button class="cors-close" id="cors-close" aria-label="Schließen">&times;</button>
-    <div class="cors-title"><span>⚠</span> CORS-Fehler erkannt</div>
-    Der Browser blockt Anfragen an WLED (Cross-Origin-Policy).<br>
-    Lösung: <strong>CORS-Addon</strong> im Browser installieren — z. B. <em>Allow CORS</em>
-    (Chrome/Firefox) oder WLED-CORS-Plugin auf dem Controller aktivieren.
+    <button class="cors-close" id="cors-close" aria-label="Close">&times;</button>
+    <div class="cors-title"><span>⚠</span> CORS error detected</div>
+    The browser is blocking requests to WLED (cross-origin policy).<br>
+    Fix: install a <strong>CORS add-on</strong> in your browser — e.g. <em>Allow CORS</em>
+    (Chrome/Firefox) or enable the WLED CORS plugin on the controller.
   </div>
 
   <h1>Keyboard → WLED</h1>
-  <p class="subtitle">MIDI-Keyboard in Echtzeit mit WLED-LED-Strip verbinden</p>
+  <p class="subtitle">Connect a MIDI keyboard to a WLED LED strip in real time</p>
 
   <div class="visualization">
     <div class="led-row" id="led-row"></div>
@@ -432,53 +432,53 @@
 
   <div class="grid">
     <div class="card">
-      <h2>Verbindung</h2>
+      <h2>Connection</h2>
       <div class="row">
-        <label for="wled-ip">WLED-IP</label>
-        <input type="text" id="wled-ip" placeholder="z. B. 192.168.178.183" value="192.168.178.183">
-        <button id="wled-connect">Verbinden</button>
+        <label for="wled-ip">WLED IP</label>
+        <input type="text" id="wled-ip" placeholder="e.g. 192.168.178.183" value="192.168.178.183">
+        <button id="wled-connect">Connect</button>
       </div>
       <div class="row">
         <label>Status</label>
-        <span id="wled-status" class="status gray">Nicht verbunden</span>
+        <span id="wled-status" class="status gray">Not connected</span>
       </div>
-      <p class="help">Test per <code>GET /json/info</code></p>
+      <p class="help">Test via <code>GET /json/info</code></p>
     </div>
 
     <div class="card">
       <h2>MIDI</h2>
       <div class="row">
-        <label for="midi-device">Eingabegerät</label>
+        <label for="midi-device">Input device</label>
         <select id="midi-device" disabled>
           <option>–</option>
         </select>
       </div>
       <div class="row">
         <label>Status</label>
-        <span id="midi-status" class="status warn">Zugriff anfordern</span>
-        <button id="midi-request">Anfordern</button>
+        <span id="midi-status" class="status warn">Request access</span>
+        <button id="midi-request">Request</button>
       </div>
       <p class="help">Web MIDI API (Chrome / Edge)</p>
     </div>
 
     <div class="card">
-      <h2>LED-Bereich &amp; Mapping</h2>
+      <h2>LED Range &amp; Mapping</h2>
       <div class="row">
         <label for="led-start">LED Start</label>
         <input type="number" id="led-start" min="0" value="0">
         <span class="value" id="led-start-val">0</span>
       </div>
       <div class="row">
-        <label for="led-end">LED Ende</label>
+        <label for="led-end">LED End</label>
         <input type="number" id="led-end" min="0" value="78">
         <span class="value" id="led-end-val">78</span>
       </div>
-      <p class="help">0-basiert, inklusiv · beliebige Strip-Länge</p>
+      <p class="help">0-based, inclusive · any strip length</p>
       <div class="divider"></div>
-      <h2>Hardware-Zuordnung</h2>
+      <h2>Hardware Mapping</h2>
       <div class="cc-grid">
         <div class="cc-cell" id="cc-color-cell">
-          <div class="cc-name">Farbe (Hue)</div>
+          <div class="cc-name">Color (Hue)</div>
           <div class="cc-inputs">
             <span class="cc-label">Ch</span>
             <input type="number" id="cc-color-ch" min="0" max="16" value="1">
@@ -488,7 +488,7 @@
           </div>
         </div>
         <div class="cc-cell" id="cc-brightness-cell">
-          <div class="cc-name">Helligkeit</div>
+          <div class="cc-name">Brightness</div>
           <div class="cc-inputs">
             <span class="cc-label">Ch</span>
             <input type="number" id="cc-brightness-ch" min="0" max="16" value="2">
@@ -511,14 +511,14 @@
     </div>
 
     <div class="card">
-      <h2>Regler</h2>
+      <h2>Controls</h2>
       <div class="row">
-        <label for="color">Farbe</label>
+        <label for="color">Color</label>
         <input type="color" id="color" value="#ff6400">
         <span class="value" id="color-val">#ff6400</span>
       </div>
       <div class="row">
-        <label for="brightness">Helligkeit</label>
+        <label for="brightness">Brightness</label>
         <input type="range" id="brightness" min="0" max="100" value="100" step="1">
         <span class="value" id="brightness-val">100 %</span>
       </div>
@@ -531,43 +531,43 @@
       <div class="divider"></div>
       <h2>Keyboard</h2>
       <div class="row">
-        <label for="key-offset">Versatz</label>
+        <label for="key-offset">Offset</label>
         <input type="range" id="key-offset" min="-36" max="36" value="0" step="1">
         <span class="value" id="key-offset-val">0</span>
       </div>
       <br>
       <div class="check-row">
         <input type="checkbox" id="white-keys-only" checked>
-        <label for="white-keys-only">Nur weiße Tasten</label>
+        <label for="white-keys-only">White keys only</label>
         <input type="checkbox" id="velocity-enabled" checked>
-        <label for="velocity-enabled">Anschlagsdynamik berücksichtigen</label>
+        <label for="velocity-enabled">Apply velocity sensitivity</label>
       </div>
     </div>
   </div>
 
   <details class="monitor-details">
-    <summary>MIDI-Monitor <span class="dim">(Debug — klicken zum Ein-/Ausblenden)</span></summary>
+    <summary>MIDI Monitor <span class="dim">(Debug — click to show/hide)</span></summary>
     <div class="monitor-log" id="monitor-log"></div>
     <div class="monitor-actions">
-      <button id="monitor-clear" class="small">Leeren</button>
-      <span class="help">Treffer auf den CC-Feldern oben werden hervorgehoben</span>
+      <button id="monitor-clear" class="small">Clear</button>
+      <span class="help">Matches on the CC fields above are highlighted</span>
     </div>
   </details>
 
-  <p class="footer">Latenz-Ziel: ≤ 33 ms · Throttle: max. 30 Requests/s an WLED</p>
+  <p class="footer">Latency target: ≤ 33 ms · Throttle: max. 30 requests/s to WLED</p>
 
 <script>
 "use strict";
 
 /* ============================================================
-   Konstanten
+   Constants
    ============================================================ */
-const BASE_FIRST_NOTE = 48;   // C3 (= Donners Standardoktave, Versatz 0)
-const NUM_KEYS = 25;          // 25 Tasten
+const BASE_FIRST_NOTE = 48;   // C3 (= Donner default octave, offset 0)
+const NUM_KEYS = 25;          // 25 keys
 const BASE_LAST_NOTE = BASE_FIRST_NOTE + NUM_KEYS - 1; // 72 = C5
 const MIN_SEND_INTERVAL = 33; // ms → 30 req/s
 const MAX_MONITOR_ENTRIES = 50;
-const MAX_VIS_LEDS = 500;     // Cap für Visualisierung (Performance)
+const MAX_VIS_LEDS = 500;     // Cap for visualization (performance)
 
 const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
@@ -591,7 +591,7 @@ const state = {
   ccBrightness: { ch: 2, num: 7 },
   ccColor: { ch: 1, num: 7 },
 
-  keyOffset: 0,  // Halbtöne, gespiegelt: + = tiefere Noten
+  keyOffset: 0,  // semitones, mirrored: + = lower notes
   whiteKeysOnly: true,
   velocityEnabled: true,
 
@@ -729,7 +729,7 @@ function hslToRgb(h, s, l) {
 }
 
 /* ============================================================
-   LED-Visualisierung (dynamisch, basierend auf state.ledEnd)
+   LED visualization (dynamic, based on state.ledEnd)
    ============================================================ */
 const ledElements = [];
 function buildLedVisuals() {
@@ -798,7 +798,7 @@ function getNoteSegment(note) {
 }
 
 /* ============================================================
-   Velocity → Helligkeit
+   Velocity → brightness
    ============================================================ */
 function velocityToBrightness(velocity) {
   if (!state.velocityEnabled) {
@@ -808,7 +808,7 @@ function velocityToBrightness(velocity) {
 }
 
 /* ============================================================
-   LED-Color-Map
+   LED color map
    ============================================================ */
 function buildLedColorMap() {
   const map = new Map();
@@ -904,7 +904,7 @@ function scheduleWledSend() {
 }
 
 /* ============================================================
-   Fade-Engine
+   Fade engine
    ============================================================ */
 function startFadeLoop() {
   if (state.fadeLoopRunning) return;
@@ -1007,7 +1007,7 @@ function classifyMidi(bytes) {
     type = "Sys/Common";
     detail = bytes.length + " bytes";
   } else {
-    type = "Andere";
+    type = "Other";
     detail = d1 + " " + d2;
   }
 
@@ -1027,7 +1027,7 @@ function renderMonitor() {
   if (monitorLog.length === 0) {
     const el = document.createElement("div");
     el.className = "monitor-empty";
-    el.textContent = "Noch keine Nachrichten — spiele eine Taste oder bewege einen Regler";
+    el.textContent = "No messages yet — play a key or move a controller";
     log.appendChild(el);
     return;
   }
@@ -1063,7 +1063,7 @@ function populateMidiDevices() {
   dom.midiDevice.innerHTML = "";
   if (inputs.length === 0) {
     const opt = document.createElement("option");
-    opt.textContent = "Kein Gerät gefunden";
+    opt.textContent = "No device found";
     dom.midiDevice.appendChild(opt);
     dom.midiDevice.disabled = true;
     return;
@@ -1071,7 +1071,7 @@ function populateMidiDevices() {
   inputs.forEach((input, idx) => {
     const opt = document.createElement("option");
     opt.value = input.id;
-    opt.textContent = input.name || ("Eingang " + idx);
+    opt.textContent = input.name || ("Input " + idx);
     dom.midiDevice.appendChild(opt);
   });
   dom.midiDevice.disabled = false;
@@ -1138,36 +1138,36 @@ function attachMidiInput(input) {
       handleCcMessage(channel, d1, d2);
     }
   };
-  setMidiStatus("ok", "Verbunden: " + (input.name || input.id));
+  setMidiStatus("ok", "Connected: " + (input.name || input.id));
 }
 
 async function requestMidiAccess() {
   if (!navigator.requestMIDIAccess) {
-    setMidiStatus("err", "Web MIDI API nicht verfügbar (nur Chrome/Edge)");
+    setMidiStatus("err", "Web MIDI API not available (Chrome/Edge only)");
     return;
   }
   try {
     const access = await navigator.requestMIDIAccess({ sysex: false });
     state.midiAccess = access;
-    setMidiStatus("ok", "Zugriff gewährt");
+    setMidiStatus("ok", "Access granted");
     populateMidiDevices();
     access.onstatechange = () => populateMidiDevices();
   } catch (err) {
-    setMidiStatus("err", "Zugriff verweigert");
+    setMidiStatus("err", "Access denied");
   }
 }
 
 /* ============================================================
-   WLED-Verbindung
+   WLED connection
    ============================================================ */
 function setWledStatus(ok, detail) {
   state.wledOk = !!ok;
   if (ok) {
     dom.wledStatus.className = "status ok";
-    dom.wledStatus.textContent = "Verbunden" + (detail ? " (" + detail + ")" : "");
+    dom.wledStatus.textContent = "Connected" + (detail ? " (" + detail + ")" : "");
   } else {
     dom.wledStatus.className = "status err";
-    dom.wledStatus.textContent = "Nicht erreichbar" + (detail ? " (" + detail + ")" : "");
+    dom.wledStatus.textContent = "Not reachable" + (detail ? " (" + detail + ")" : "");
   }
 }
 
@@ -1212,11 +1212,11 @@ async function testWledConnection() {
   const ip = dom.wledIp.value.trim();
   state.wledIp = ip;
   if (!ip) {
-    setWledStatus(false, "keine IP");
+    setWledStatus(false, "no IP");
     return;
   }
   dom.wledStatus.className = "status warn";
-  dom.wledStatus.textContent = "Teste…";
+  dom.wledStatus.textContent = "Testing…";
   let timer = null;
   try {
     const ctrl = new AbortController();
@@ -1237,13 +1237,13 @@ async function testWledConnection() {
       setWledStatus(false, "CORS blockiert");
       showCorsNote();
     } else {
-      setWledStatus(false, "Timeout / Netzwerk");
+      setWledStatus(false, "Timeout / network");
     }
   }
 }
 
 /* ============================================================
-   Reset / Anzeigen
+   Reset / display
    ============================================================ */
 function resetActiveNotes() {
   state.activeNotes.clear();
@@ -1272,15 +1272,15 @@ function updateKeyRangeDisplay() {
   let countTxt;
   if (state.whiteKeysOnly) {
     const wc = countWhiteKeysInRange(first, last);
-    countTxt = wc + " weiße Tasten";
+    countTxt = wc + " white keys";
   } else {
-    countTxt = NUM_KEYS + " Tasten";
+    countTxt = NUM_KEYS + " keys";
   }
   dom.legendMid.textContent = txt + " · " + countTxt;
 }
 
 /* ============================================================
-   UI-Event-Handler
+   UI event handlers
    ============================================================ */
 function bindUi() {
   dom.wledConnect.addEventListener("click", testWledConnection);
@@ -1387,9 +1387,9 @@ function init() {
   updateVisualization();
 
   if (navigator.requestMIDIAccess) {
-    setMidiStatus("warn", "Zugriff anfordern");
+    setMidiStatus("warn", "Request access");
   } else {
-    setMidiStatus("err", "Web MIDI API nicht verfügbar");
+    setMidiStatus("err", "Web MIDI API not available");
   }
 }
 
