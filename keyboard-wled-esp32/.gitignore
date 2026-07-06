@@ -1,0 +1,13 @@
+secrets.h
+
+build/
+*.bin
+*.elf
+*.map
+*.hex
+*.o
+*.d
+*.merged.bin
+*.partitions.bin
+*.bootloader.bin
+.DS_Store

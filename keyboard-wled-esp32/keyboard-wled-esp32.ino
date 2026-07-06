@@ -1,14 +1,8 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <Arduino.h>
-
-#define WIFI_SSID     "your-ssid"
-#define WIFI_PASSWORD "your-password"
-
-#define WLED_IP   "192.168.178.183"
-
-constexpr int8_t  MIDI_RX_PIN = 2;
-constexpr int8_t  MIDI_TX_PIN = 1;
+#include "UsbMidi.h"
+#include "secrets.h"
 
 constexpr uint16_t LED_START = 0;
 constexpr uint16_t LED_END   = 78;
@@ -57,9 +51,9 @@ uint32_t lastSendMs    = 0;
 bool     sendPending   = false;
 uint32_t nextSendAt    = 0;
 
-uint8_t  midiStatus  = 0;
-uint8_t  midiData1   = 0;
-bool     midiHasData1 = false;
+bool     wasMidiConnected = false;
+
+UsbMidi usbMidi;
 
 void rgbToHsl(uint8_t r, uint8_t g, uint8_t b, float& h, float& s, float& l) {
   float rf = r / 255.0f, gf = g / 255.0f, bf = b / 255.0f;
@@ -335,28 +329,26 @@ void dispatchMidi(uint8_t status, uint8_t d1, uint8_t d2) {
   }
 }
 
-void handleMidiByte(uint8_t byte) {
-  if (byte & 0x80) {
-    if (byte == 0xF0 || byte == 0xF7 || byte == 0xFF) {
-      midiStatus = 0;
-      return;
-    }
-    midiStatus = byte;
-    midiHasData1 = false;
-  } else {
-    if (midiStatus == 0) return;
-    uint8_t cmd = midiStatus & 0xF0;
-    if (cmd == 0xC0 || cmd == 0xD0) {
-      dispatchMidi(midiStatus, byte, 0);
-      midiStatus = 0;
-    } else if (!midiHasData1) {
-      midiData1 = byte;
-      midiHasData1 = true;
-    } else {
-      dispatchMidi(midiStatus, midiData1, byte);
-      midiHasData1 = false;
-    }
+void onUsbMidiMessage(const uint8_t (&data)[4]) {
+  dispatchMidi(data[1], data[2], data[3]);
+}
+
+void onUsbMidiConnected() {
+  Serial.println("USB MIDI device connected");
+  for (uint8_t i = 0; i < NUM_KEYS; i++) {
+    activeNotes[i].active = false;
   }
+  buildLedColorMap();
+  scheduleWledSend();
+}
+
+void onUsbMidiDisconnected() {
+  Serial.println("USB MIDI device disconnected");
+  for (uint8_t i = 0; i < NUM_KEYS; i++) {
+    activeNotes[i].active = false;
+  }
+  buildLedColorMap();
+  scheduleWledSend();
 }
 
 void resetAndClearWled() {
@@ -375,9 +367,6 @@ void setup() {
   Serial.begin(115200);
   delay(200);
 
-  Serial1.begin(31250, SERIAL_8N1, MIDI_RX_PIN, MIDI_TX_PIN);
-  Serial.printf("MIDI input on Serial1 (RX=%d, TX=%d) @ 31250 baud\n", MIDI_RX_PIN, MIDI_TX_PIN);
-
   rgbToHsl(DEFAULT_COLOR_R, DEFAULT_COLOR_G, DEFAULT_COLOR_B, hslH, hslS, hslL);
 
   Serial.printf("Connecting to WiFi '%s' ...\n", WIFI_SSID);
@@ -393,18 +382,21 @@ void setup() {
     Serial.println("WiFi connection FAILED (will retry in loop)");
   }
 
+  usbMidi.onMidiMessage(onUsbMidiMessage);
+  usbMidi.onDeviceConnected(onUsbMidiConnected);
+  usbMidi.onDeviceDisconnected(onUsbMidiDisconnected);
+  usbMidi.begin();
+
   resetAndClearWled();
   Serial.println("WLED cleared");
   Serial.printf("MIDI range: %d-%d, LEDs: %d-%d, WLED: %s\n",
                 effectiveFirstNote(), effectiveLastNote(),
                 LED_START, LED_END, WLED_IP);
-  Serial.println("Ready");
+  Serial.println("Waiting for USB MIDI device on native USB-OTG port (GPIO 19/20)...");
 }
 
 void loop() {
-  while (Serial1.available()) {
-    handleMidiByte((uint8_t)Serial1.read());
-  }
+  usbMidi.update();
 
   if (WiFi.status() != WL_CONNECTED) {
     static uint32_t lastReconnectAttempt = 0;
