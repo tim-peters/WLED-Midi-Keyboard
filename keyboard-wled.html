@@ -43,6 +43,9 @@
     border-radius: 8px;
     padding: 16px 18px;
   }
+  .card-wide {
+    grid-column: 1 / -1;
+  }
   .card h2 {
     margin: 0 0 12px 0;
     font-size: 12px;
@@ -188,12 +191,26 @@
     color: #4b5260;
     margin: 0 2px;
   }
-  .cc-cell.flash {
-    animation: ccFlash 0.3s ease-out;
+
+  .check-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
   }
-  @keyframes ccFlash {
-    0%   { background: #1c3a5e; border-color: #4a90e2; }
-    100% { background: #0f1216; border-color: #2c333d; }
+  .check-row input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: #4a90e2;
+    cursor: pointer;
+    margin: 0;
+    flex: none;
+  }
+  .check-row label {
+    flex: 1;
+    font-size: 13px;
+    color: #b6bcc6;
+    cursor: pointer;
   }
 
   .visualization {
@@ -206,7 +223,6 @@
   .led-row {
     display: flex;
     gap: 1px;
-    justify-content: space-between;
     margin-bottom: 8px;
   }
   .led {
@@ -215,6 +231,7 @@
     background: #1f242b;
     border-radius: 1px;
     transition: background-color 0.04s linear;
+    min-width: 1px;
   }
   .led.inactive {
     background: #181c20;
@@ -236,26 +253,6 @@
     margin: 6px 0 0 0;
   }
   .help .dim { color: #4b5260; font-size: 10px; }
-  .check-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 10px;
-  }
-  .check-row input[type="checkbox"] {
-    width: 16px;
-    height: 16px;
-    accent-color: #4a90e2;
-    cursor: pointer;
-    margin: 0;
-    flex: none;
-  }
-  .check-row label {
-    flex: 1;
-    font-size: 13px;
-    color: #b6bcc6;
-    cursor: pointer;
-  }
   code {
     font-family: "SF Mono", Menlo, Consolas, monospace;
     background: #0f1216;
@@ -271,17 +268,64 @@
     text-align: center;
   }
 
-  /* MIDI Monitor */
-  .monitor-log {
+  /* MIDI-Monitor (kollabierbar) */
+  details.monitor-details {
+    background: #1b1f25;
+    border: 1px solid #262b33;
+    border-radius: 8px;
+    margin-top: 16px;
+  }
+  details.monitor-details > summary {
+    padding: 14px 18px;
+    cursor: pointer;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #8a93a0;
+    font-weight: 600;
+    list-style: none;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  details.monitor-details > summary::-webkit-details-marker { display: none; }
+  details.monitor-details > summary::before {
+    content: "▶";
+    display: inline-block;
+    font-size: 9px;
+    color: #6b7280;
+    transition: transform 0.15s;
+  }
+  details.monitor-details[open] > summary::before {
+    transform: rotate(90deg);
+  }
+  details.monitor-details > summary .dim {
+    color: #4b5260;
+    font-size: 10px;
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 400;
+  }
+  details.monitor-details .monitor-log {
     background: #0a0c0f;
     border: 1px solid #262b33;
     border-radius: 5px;
     padding: 6px 8px;
+    margin: 0 18px 8px 18px;
     font-family: "SF Mono", Menlo, Consolas, monospace;
     font-size: 11px;
     height: 170px;
     overflow-y: auto;
   }
+  details.monitor-details .monitor-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 18px 14px 18px;
+  }
+  details.monitor-details .monitor-actions .help { margin: 0; }
+
   .monitor-entry {
     display: flex;
     gap: 8px;
@@ -319,13 +363,6 @@
   .t-CC       .monitor-type { color: #4a90e2; }
   .t-Program  .monitor-type { color: #fbbf24; }
   .t-PitchBend .monitor-type { color: #c084fc; }
-  .monitor-actions {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 8px;
-  }
-  .monitor-actions .help { margin: 0; }
 </style>
 </head>
 <body>
@@ -360,22 +397,38 @@
         <span id="midi-status" class="status warn">Zugriff anfordern</span>
         <button id="midi-request">Anfordern</button>
       </div>
-      <p class="help">Browser benötigt Web MIDI API (Chrome / Edge)</p>
+      <p class="help">Web MIDI API (Chrome / Edge)</p>
     </div>
 
     <div class="card">
-      <h2>LED-Bereich</h2>
+      <h2>LED-Bereich &amp; Mapping</h2>
       <div class="row">
         <label for="led-start">LED Start</label>
-        <input type="number" id="led-start" min="0" max="78" value="0">
+        <input type="number" id="led-start" min="0" value="0">
         <span class="value" id="led-start-val">0</span>
       </div>
       <div class="row">
         <label for="led-end">LED Ende</label>
-        <input type="number" id="led-end" min="0" max="78" value="78">
+        <input type="number" id="led-end" min="0" value="78">
         <span class="value" id="led-end-val">78</span>
       </div>
-      <p class="help">Physischer Strip-Bereich, 0-basiert, inklusiv · 79 LEDs gesamt (0–78)</p>
+      <p class="help">0-basiert, inklusiv · beliebige Strip-Länge</p>
+      <div class="divider"></div>
+      <h2>Tastatur</h2>
+      <div class="row">
+        <label for="key-offset">Versatz</label>
+        <input type="range" id="key-offset" min="-36" max="36" value="0" step="1">
+        <span class="value" id="key-offset-val">0</span>
+      </div>
+      <br>
+      <div class="check-row">
+        <input type="checkbox" id="white-keys-only" checked>
+        <label for="white-keys-only">Nur weiße Tasten</label>
+        <input type="checkbox" id="velocity-enabled" checked>
+        <label for="velocity-enabled">Anschlagsdynamik berücksichtigen</label>
+      </div>
+      <br>
+      <p class="help">Aktiver Bereich: <code id="key-range">C3–C5 (48–72)</code> · <span id="key-count">15</span> Tasten<br>
     </div>
 
     <div class="card">
@@ -398,7 +451,7 @@
 
 
       <div class="divider"></div>
-      <p class="help">MIDI CC der drei Hardware-Regler (Regler 1 = Ch 1, Regler 2 = Ch 2, Regler 3 = Ch 3):</p>
+      <h2>Hardware-Zuordnung</h2>
       <div class="cc-grid">
         <div class="cc-cell" id="cc-color-cell">
           <div class="cc-name">Farbe (Hue)</div>
@@ -432,42 +485,23 @@
         </div>
       </div>
     </div>
-
-    <div class="card">
-      <h2>Tastatur</h2>
-      <div class="row">
-        <label for="key-offset">Versatz</label>
-        <input type="range" id="key-offset" min="-36" max="36" value="0" step="1">
-        <span class="value" id="key-offset-val">0</span>
-      </div>
-      <div class="check-row">
-        <input type="checkbox" id="white-keys-only">
-        <label for="white-keys-only">Nur weiße Tasten</label>
-      </div>
-      <div class="check-row">
-        <input type="checkbox" id="velocity-enabled" checked>
-        <label for="velocity-enabled">Anschlagsdynamik berücksichtigen</label>
-      </div>
-      <p class="help">Aktiver Bereich: <code id="key-range">C3–C5 (48–72)</code> · <span id="key-count">25</span> Tasten<br>
-        <span class="dim">Versatz 0 = Standardoktave des Donner DMK 25 Pro</span></p>
-    </div>
-
-    <div class="card">
-      <h2>MIDI-Monitor</h2>
-      <div class="monitor-log" id="monitor-log"></div>
-      <div class="monitor-actions">
-        <button id="monitor-clear" class="small">Leeren</button>
-        <span class="help">Treffer auf den CC-Feldern oben werden hervorgehoben</span>
-      </div>
-    </div>
   </div>
+
+  <details class="monitor-details">
+    <summary>MIDI-Monitor <span class="dim">(Debug — klicken zum Ein-/Ausblenden)</span></summary>
+    <div class="monitor-log" id="monitor-log"></div>
+    <div class="monitor-actions">
+      <button id="monitor-clear" class="small">Leeren</button>
+      <span class="help">Treffer auf den CC-Feldern oben werden hervorgehoben</span>
+    </div>
+  </details>
 
   <div class="visualization">
     <div class="led-row" id="led-row"></div>
     <div class="legend">
       <span>LED 0</span>
       <span id="legend-mid">C3–C5 (48–72)</span>
-      <span>LED 78</span>
+      <span id="legend-end">LED 78</span>
     </div>
   </div>
 
@@ -479,12 +513,12 @@
 /* ============================================================
    Konstanten
    ============================================================ */
-const TOTAL_LEDS = 79;
 const BASE_FIRST_NOTE = 48;   // C3 (= Donners Standardoktave, Versatz 0)
 const NUM_KEYS = 25;          // 25 Tasten
 const BASE_LAST_NOTE = BASE_FIRST_NOTE + NUM_KEYS - 1; // 72 = C5
 const MIN_SEND_INTERVAL = 33; // ms → 30 req/s
 const MAX_MONITOR_ENTRIES = 50;
+const MAX_VIS_LEDS = 500;     // Cap für Visualisierung (Performance)
 
 const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
@@ -509,7 +543,7 @@ const state = {
   ccColor: { ch: 1, num: 7 },
 
   keyOffset: 0,  // Halbtöne, gespiegelt: + = tiefere Noten
-  whiteKeysOnly: false,
+  whiteKeysOnly: true,
   velocityEnabled: true,
 
   activeNotes: new Map(),
@@ -561,6 +595,7 @@ const dom = {
   monitorClear:  $("monitor-clear"),
   ledRow:        $("led-row"),
   legendMid:     $("legend-mid"),
+  legendEnd:     $("legend-end"),
 };
 
 /* ============================================================
@@ -575,22 +610,17 @@ function noteName(n) {
 }
 
 function isWhiteKey(n) {
-  // Mod 12: 0=C, 2=D, 4=E, 5=F, 7=G, 9=A, 11=B
   const m = ((n % 12) + 12) % 12;
   return m === 0 || m === 2 || m === 4 || m === 5 || m === 7 || m === 9 || m === 11;
 }
 
 function countWhiteKeysInRange(first, last) {
   let c = 0;
-  for (let n = first; n <= last; n++) {
-    if (isWhiteKey(n)) c++;
-  }
+  for (let n = first; n <= last; n++) if (isWhiteKey(n)) c++;
   return c;
 }
 
 function effectiveFirstNote() {
-  // Slider ist gespiegelt: +12 (Default) entspricht der Keyboard-Standard-
-  // einstellung, bei der das Keyboard eine Oktave höher sendet als C2.
   return clamp(BASE_FIRST_NOTE - state.keyOffset, 0, 127 - NUM_KEYS + 1);
 }
 function effectiveLastNote() {
@@ -647,19 +677,26 @@ function hslToRgb(h, s, l) {
 }
 
 /* ============================================================
-   LED-Visualisierung
+   LED-Visualisierung (dynamisch, basierend auf state.ledEnd)
    ============================================================ */
 const ledElements = [];
 function buildLedVisuals() {
+  const total = Math.min(state.ledEnd + 1, MAX_VIS_LEDS);
   dom.ledRow.innerHTML = "";
   ledElements.length = 0;
-  for (let i = 0; i < TOTAL_LEDS; i++) {
+  for (let i = 0; i < total; i++) {
     const el = document.createElement("div");
     el.className = "led inactive";
     el.title = "LED " + i;
     dom.ledRow.appendChild(el);
     ledElements.push(el);
   }
+  dom.legendEnd.textContent = "LED " + state.ledEnd;
+}
+
+function rebuildVisualization() {
+  buildLedVisuals();
+  updateVisualization();
 }
 
 /* ============================================================
@@ -673,7 +710,6 @@ function getNoteSegment(note) {
 
   if (state.whiteKeysOnly) {
     if (!isWhiteKey(note)) return null;
-    // Liste der weißen Tasten im aktiven Bereich, Index dieser Note
     const whiteKeys = [];
     for (let n = firstNote; n <= lastNote; n++) {
       if (isWhiteKey(n)) whiteKeys.push(n);
@@ -724,7 +760,7 @@ function velocityToBrightness(velocity) {
    ============================================================ */
 function buildLedColorMap() {
   const map = new Map();
-  for (let i = 0; i < TOTAL_LEDS; i++) {
+  for (let i = 0; i <= state.ledEnd; i++) {
     if (i < state.ledStart || i > state.ledEnd) {
       map.set(i, null);
     } else {
@@ -749,10 +785,10 @@ function buildLedColorMap() {
 
 function updateVisualization() {
   const map = buildLedColorMap();
-  for (let i = 0; i < TOTAL_LEDS; i++) {
+  for (let i = 0; i < ledElements.length; i++) {
     const el = ledElements[i];
     const c = map.get(i);
-    if (c === null) {
+    if (c === undefined || c === null) {
       el.classList.add("inactive");
       el.classList.remove("active");
       el.style.backgroundColor = "";
@@ -828,9 +864,6 @@ function startFadeLoop() {
     const now = performance.now();
     let dirty = false;
     for (const [note, n] of state.activeNotes) {
-      // Noch gehaltene Tasten überspringen — sie dürfen nicht
-      // versehentlich vom Fade-Loop gelöscht werden, wenn andere
-      // Noten im selben Frame gerade ausfaden.
       if (!n.isFading) continue;
       const elapsed = now - n.fadeStartTime;
       if (elapsed >= state.fadeOutMs) {
@@ -903,9 +936,9 @@ function classifyMidi(bytes) {
   } else if (cmd === 0xB0) {
     type = "CC";
     detail = "CC #" + d1 + " = " + d2;
-    if (matchesCcConfig(channel, d1, state.ccFade)) match = "fade";
+    if (matchesCcConfig(channel, d1, state.ccColor)) match = "color";
     else if (matchesCcConfig(channel, d1, state.ccBrightness)) match = "brightness";
-    else if (matchesCcConfig(channel, d1, state.ccColor)) match = "color";
+    else if (matchesCcConfig(channel, d1, state.ccFade)) match = "fade";
   } else if (cmd === 0xC0) {
     type = "Program";
     detail = "Program " + d1;
@@ -935,6 +968,7 @@ function logMidiMessage(bytes) {
 
 function renderMonitor() {
   const log = dom.monitorLog;
+  if (!log) return;
   log.innerHTML = "";
   if (monitorLog.length === 0) {
     const el = document.createElement("div");
@@ -1009,11 +1043,10 @@ function matchesCcConfig(channel, ccNum, config) {
 }
 
 function handleCcMessage(channel, ccNum, ccVal) {
-  if (matchesCcConfig(channel, ccNum, state.ccFade)) {
-    state.fadeOutMs = Math.round((ccVal / 127) * 3000);
-    dom.fadeOut.value = state.fadeOutMs;
-    dom.fadeOutVal.textContent = state.fadeOutMs + " ms";
-    flashCcCell(dom.ccFadeCell);
+  if (matchesCcConfig(channel, ccNum, state.ccColor)) {
+    const hue = (ccVal / 127) * 360;
+    setColorHue(hue);
+    flashCcCell(dom.ccColorCell);
   }
   if (matchesCcConfig(channel, ccNum, state.ccBrightness)) {
     state.maxBrightnessPct = Math.round((ccVal / 127) * 100);
@@ -1021,10 +1054,11 @@ function handleCcMessage(channel, ccNum, ccVal) {
     dom.brightnessVal.textContent = state.maxBrightnessPct + " %";
     flashCcCell(dom.ccBrightCell);
   }
-  if (matchesCcConfig(channel, ccNum, state.ccColor)) {
-    const hue = (ccVal / 127) * 360;
-    setColorHue(hue);
-    flashCcCell(dom.ccColorCell);
+  if (matchesCcConfig(channel, ccNum, state.ccFade)) {
+    state.fadeOutMs = Math.round((ccVal / 127) * 3000);
+    dom.fadeOut.value = state.fadeOutMs;
+    dom.fadeOutVal.textContent = state.fadeOutMs + " ms";
+    flashCcCell(dom.ccFadeCell);
   }
 }
 
@@ -1119,7 +1153,7 @@ function resetActiveNotes() {
   }
   state.lastSendTime = 0;
   const i = [];
-  for (let idx = 0; idx < TOTAL_LEDS; idx++) {
+  for (let idx = 0; idx <= state.ledEnd; idx++) {
     i.push(idx, [0, 0, 0]);
   }
   fetch("http://" + state.wledIp + "/json/state", {
@@ -1165,18 +1199,18 @@ function bindUi() {
   });
 
   dom.ledStart.addEventListener("input", () => {
-    let v = clamp(parseInt(dom.ledStart.value, 10) || 0, 0, TOTAL_LEDS - 1);
+    let v = clamp(parseInt(dom.ledStart.value, 10) || 0, 0, 99999);
     state.ledStart = v;
     dom.ledStart.value = v;
     dom.ledStartVal.textContent = v;
     resetActiveNotes();
   });
   dom.ledEnd.addEventListener("input", () => {
-    let v = clamp(parseInt(dom.ledEnd.value, 10) || 0, 0, TOTAL_LEDS - 1);
+    let v = clamp(parseInt(dom.ledEnd.value, 10) || 0, 0, 99999);
     state.ledEnd = v;
     dom.ledEnd.value = v;
-    dom.ledEnd.value = v;
     dom.ledEndVal.textContent = v;
+    rebuildVisualization();
     resetActiveNotes();
   });
 
@@ -1208,9 +1242,9 @@ function bindUi() {
     chInput.addEventListener("blur", () => { chInput.value = state[stateKey].ch; });
     numInput.addEventListener("blur", () => { numInput.value = state[stateKey].num; });
   }
-  bindCcPair(dom.ccFadeCh, dom.ccFade, "ccFade");
-  bindCcPair(dom.ccBrightnessCh, dom.ccBrightness, "ccBrightness");
   bindCcPair(dom.ccColorCh, dom.ccColor, "ccColor");
+  bindCcPair(dom.ccBrightnessCh, dom.ccBrightness, "ccBrightness");
+  bindCcPair(dom.ccFadeCh, dom.ccFade, "ccFade");
 
   dom.keyOffset.addEventListener("input", () => {
     let v = parseInt(dom.keyOffset.value, 10) || 0;
@@ -1232,10 +1266,12 @@ function bindUi() {
     state.velocityEnabled = dom.velocityEnabled.checked;
   });
 
-  dom.monitorClear.addEventListener("click", () => {
-    monitorLog.length = 0;
-    renderMonitor();
-  });
+  if (dom.monitorClear) {
+    dom.monitorClear.addEventListener("click", () => {
+      monitorLog.length = 0;
+      renderMonitor();
+    });
+  }
 }
 
 /* ============================================================
