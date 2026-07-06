@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Keyboard → WLED</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #121417;
+    color: #e6e8eb;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+      Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+    font-size: 14px;
+    min-height: 100vh;
+  }
+  body {
+    padding: 24px;
+    max-width: 1280px;
+    margin: 0 auto;
+  }
+  h1 {
+    margin: 0 0 4px 0;
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+  }
+  .subtitle {
+    color: #8a93a0;
+    margin: 0 0 24px 0;
+    font-size: 13px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .card {
+    background: #1b1f25;
+    border: 1px solid #262b33;
+    border-radius: 8px;
+    padding: 16px 18px;
+  }
+  .card h2 {
+    margin: 0 0 12px 0;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #8a93a0;
+    font-weight: 600;
+  }
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .row:last-child { margin-bottom: 0; }
+  label {
+    flex: 0 0 110px;
+    color: #b6bcc6;
+    font-size: 13px;
+  }
+  input[type="text"],
+  input[type="number"],
+  select {
+    flex: 1;
+    background: #0f1216;
+    color: #e6e8eb;
+    border: 1px solid #2c333d;
+    border-radius: 5px;
+    padding: 7px 9px;
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  input[type="text"]:focus,
+  input[type="number"]:focus,
+  select:focus {
+    border-color: #4a90e2;
+  }
+  input[type="color"] {
+    flex: 0 0 44px;
+    height: 30px;
+    border: 1px solid #2c333d;
+    border-radius: 5px;
+    background: #0f1216;
+    cursor: pointer;
+    padding: 2px;
+  }
+  input[type="range"] {
+    flex: 1;
+    accent-color: #4a90e2;
+  }
+  button {
+    background: #4a90e2;
+    color: #fff;
+    border: 0;
+    border-radius: 5px;
+    padding: 7px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s;
+  }
+  button:hover { background: #5aa0f2; }
+  button:active { background: #3a80d2; }
+  button:disabled { background: #2c333d; color: #6b7280; cursor: not-allowed; }
+  button.small { padding: 4px 10px; font-size: 12px; }
+  .value {
+    flex: 0 0 90px;
+    text-align: right;
+    color: #b6bcc6;
+    font-variant-numeric: tabular-nums;
+    font-size: 12px;
+  }
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    padding: 3px 8px;
+    border-radius: 10px;
+    font-weight: 500;
+  }
+  .status::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+  .status.ok { color: #4ade80; background: rgba(74, 222, 128, 0.12); }
+  .status.err { color: #f87171; background: rgba(248, 113, 113, 0.12); }
+  .status.warn { color: #fbbf24; background: rgba(251, 191, 36, 0.12); }
+  .status.gray { color: #8a93a0; background: rgba(138, 147, 160, 0.12); }
+
+  .divider {
+    height: 1px;
+    background: #262b33;
+    margin: 14px -2px 12px -2px;
+  }
+  .cc-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .cc-cell {
+    background: #0f1216;
+    border: 1px solid #2c333d;
+    border-radius: 5px;
+    padding: 8px 10px;
+  }
+  .cc-name {
+    font-size: 10px;
+    color: #8a93a0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+  }
+  .cc-inputs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .cc-inputs input {
+    width: 40px;
+    background: transparent;
+    color: #e6e8eb;
+    border: 0;
+    padding: 0;
+    font-size: 16px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+  }
+  .cc-inputs input:focus { outline: none; }
+  .cc-label {
+    color: #6b7280;
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .cc-sep {
+    color: #4b5260;
+    margin: 0 2px;
+  }
+  .cc-cell.flash {
+    animation: ccFlash 0.3s ease-out;
+  }
+  @keyframes ccFlash {
+    0%   { background: #1c3a5e; border-color: #4a90e2; }
+    100% { background: #0f1216; border-color: #2c333d; }
+  }
+
+  .visualization {
+    background: #0a0c0f;
+    border: 1px solid #262b33;
+    border-radius: 8px;
+    padding: 18px 16px 12px 16px;
+    margin-top: 16px;
+  }
+  .led-row {
+    display: flex;
+    gap: 1px;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .led {
+    flex: 1;
+    height: 22px;
+    background: #1f242b;
+    border-radius: 1px;
+    transition: background-color 0.04s linear;
+  }
+  .led.inactive {
+    background: #181c20;
+    box-shadow: inset 0 0 0 1px #14171b;
+  }
+  .led.active {
+    box-shadow: 0 0 6px rgba(74, 144, 226, 0.25);
+  }
+  .legend {
+    display: flex;
+    justify-content: space-between;
+    color: #6b7280;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+  }
+  .help {
+    color: #6b7280;
+    font-size: 11px;
+    margin: 6px 0 0 0;
+  }
+  .help .dim { color: #4b5260; font-size: 10px; }
+  code {
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    background: #0f1216;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 12px;
+    color: #b6bcc6;
+  }
+  .footer {
+    margin-top: 20px;
+    color: #4b5260;
+    font-size: 11px;
+    text-align: center;
+  }
+
+  /* MIDI Monitor */
+  .monitor-log {
+    background: #0a0c0f;
+    border: 1px solid #262b33;
+    border-radius: 5px;
+    padding: 6px 8px;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11px;
+    height: 170px;
+    overflow-y: auto;
+  }
+  .monitor-entry {
+    display: flex;
+    gap: 8px;
+    padding: 2px 4px;
+    border-radius: 3px;
+    align-items: baseline;
+    border-left: 2px solid transparent;
+  }
+  .monitor-entry:hover { background: #14181d; }
+  .monitor-entry.match-fade {
+    background: rgba(74, 222, 128, 0.08);
+    border-left-color: #4ade80;
+  }
+  .monitor-entry.match-brightness {
+    background: rgba(74, 144, 226, 0.08);
+    border-left-color: #4a90e2;
+  }
+  .monitor-entry.match-color {
+    background: rgba(251, 191, 36, 0.08);
+    border-left-color: #fbbf24;
+  }
+  .monitor-time    { color: #6b7280; min-width: 80px; }
+  .monitor-type    { font-weight: 600; min-width: 70px; }
+  .monitor-detail  { flex: 1; color: #b6bcc6; }
+  .monitor-channel { color: #6b7280; min-width: 30px; text-align: right; }
+  .monitor-hex     { color: #4b5260; min-width: 70px; text-align: right; }
+  .monitor-empty {
+    text-align: center;
+    color: #6b7280;
+    padding: 50px 0;
+    font-style: italic;
+  }
+  .t-NoteOn   .monitor-type { color: #4ade80; }
+  .t-NoteOff  .monitor-type { color: #f87171; }
+  .t-CC       .monitor-type { color: #4a90e2; }
+  .t-Program  .monitor-type { color: #fbbf24; }
+  .t-PitchBend .monitor-type { color: #c084fc; }
+  .monitor-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+  }
+  .monitor-actions .help { margin: 0; }
+</style>
+</head>
+<body>
+  <h1>Keyboard → WLED</h1>
+  <p class="subtitle">MIDI-Keyboard in Echtzeit mit WLED-LED-Strip verbinden</p>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Verbindung</h2>
+      <div class="row">
+        <label for="wled-ip">WLED-IP</label>
+        <input type="text" id="wled-ip" placeholder="z. B. 192.168.178.183" value="192.168.178.183">
+        <button id="wled-connect">Verbinden</button>
+      </div>
+      <div class="row">
+        <label>Status</label>
+        <span id="wled-status" class="status gray">Nicht verbunden</span>
+      </div>
+      <p class="help">Test per <code>GET /json/info</code></p>
+    </div>
+
+    <div class="card">
+      <h2>MIDI</h2>
+      <div class="row">
+        <label for="midi-device">Eingabegerät</label>
+        <select id="midi-device" disabled>
+          <option>–</option>
+        </select>
+      </div>
+      <div class="row">
+        <label>Status</label>
+        <span id="midi-status" class="status warn">Zugriff anfordern</span>
+        <button id="midi-request">Anfordern</button>
+      </div>
+      <p class="help">Browser benötigt Web MIDI API (Chrome / Edge)</p>
+    </div>
+
+    <div class="card">
+      <h2>LED-Bereich</h2>
+      <div class="row">
+        <label for="led-start">LED Start</label>
+        <input type="number" id="led-start" min="0" max="78" value="0">
+        <span class="value" id="led-start-val">0</span>
+      </div>
+      <div class="row">
+        <label for="led-end">LED Ende</label>
+        <input type="number" id="led-end" min="0" max="78" value="78">
+        <span class="value" id="led-end-val">78</span>
+      </div>
+      <p class="help">Physischer Strip-Bereich, 0-basiert, inklusiv · 79 LEDs gesamt (0–78)</p>
+    </div>
+
+    <div class="card">
+      <h2>Regler</h2>
+      <div class="row">
+        <label for="fade-out">Fade-Out</label>
+        <input type="range" id="fade-out" min="0" max="3000" value="800" step="10">
+        <span class="value" id="fade-out-val">800 ms</span>
+      </div>
+      <div class="row">
+        <label for="brightness">Helligkeit</label>
+        <input type="range" id="brightness" min="0" max="100" value="70" step="1">
+        <span class="value" id="brightness-val">70 %</span>
+      </div>
+      <div class="row">
+        <label for="color">Farbe</label>
+        <input type="color" id="color" value="#ff6400">
+        <span class="value" id="color-val">#ff6400</span>
+      </div>
+
+      <div class="divider"></div>
+      <p class="help">MIDI CC der drei Hardware-Regler (Ch = 0 = beliebig):</p>
+      <div class="cc-grid">
+        <div class="cc-cell" id="cc-fade-cell">
+          <div class="cc-name">Fade-Out</div>
+          <div class="cc-inputs">
+            <span class="cc-label">Ch</span>
+            <input type="number" id="cc-fade-ch" min="0" max="16" value="1">
+            <span class="cc-sep">·</span>
+            <span class="cc-label">CC</span>
+            <input type="number" id="cc-fade" min="0" max="127" value="7">
+          </div>
+        </div>
+        <div class="cc-cell" id="cc-brightness-cell">
+          <div class="cc-name">Helligkeit</div>
+          <div class="cc-inputs">
+            <span class="cc-label">Ch</span>
+            <input type="number" id="cc-brightness-ch" min="0" max="16" value="2">
+            <span class="cc-sep">·</span>
+            <span class="cc-label">CC</span>
+            <input type="number" id="cc-brightness" min="0" max="127" value="7">
+          </div>
+        </div>
+        <div class="cc-cell" id="cc-color-cell">
+          <div class="cc-name">Farbe (Hue)</div>
+          <div class="cc-inputs">
+            <span class="cc-label">Ch</span>
+            <input type="number" id="cc-color-ch" min="0" max="16" value="3">
+            <span class="cc-sep">·</span>
+            <span class="cc-label">CC</span>
+            <input type="number" id="cc-color" min="0" max="127" value="7">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Tastatur</h2>
+      <div class="row">
+        <label for="key-offset">Versatz</label>
+        <input type="range" id="key-offset" min="-36" max="36" value="0" step="1">
+        <span class="value" id="key-offset-val">0</span>
+      </div>
+      <p class="help">Aktiver Bereich: <code id="key-range">C3–C5 (48–72)</code> · 25 Tasten<br>
+        <span class="dim">Versatz 0 = Standardoktave des Donner DMK 25 Pro</span></p>
+    </div>
+
+    <div class="card">
+      <h2>MIDI-Monitor</h2>
+      <div class="monitor-log" id="monitor-log"></div>
+      <div class="monitor-actions">
+        <button id="monitor-clear" class="small">Leeren</button>
+        <span class="help">Treffer auf den CC-Feldern oben werden hervorgehoben</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="visualization">
+    <div class="led-row" id="led-row"></div>
+    <div class="legend">
+      <span>LED 0</span>
+      <span id="legend-mid">C3–C5 (48–72)</span>
+      <span>LED 78</span>
+    </div>
+  </div>
+
+  <p class="footer">Latenz-Ziel: ≤ 33 ms · Throttle: max. 30 Requests/s an WLED</p>
+
+<script>
+"use strict";
+
+/* ============================================================
+   Konstanten
+   ============================================================ */
+const TOTAL_LEDS = 79;
+const BASE_FIRST_NOTE = 48;   // C3 (= Donners Standardoktave, Versatz 0)
+const NUM_KEYS = 25;          // 25 Tasten
+const BASE_LAST_NOTE = BASE_FIRST_NOTE + NUM_KEYS - 1; // 72 = C5
+const MIN_SEND_INTERVAL = 33; // ms → 30 req/s
+const MAX_MONITOR_ENTRIES = 50;
+
+const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+/* ============================================================
+   State
+   ============================================================ */
+const state = {
+  wledIp: "192.168.178.183",
+  wledOk: false,
+  midiAccess: null,
+  midiInput: null,
+
+  ledStart: 0,
+  ledEnd: 78,
+
+  fadeOutMs: 800,
+  maxBrightnessPct: 70,
+  color: { r: 0xff, g: 0x64, b: 0x00 },
+
+  ccFade: { ch: 1, num: 7 },
+  ccBrightness: { ch: 2, num: 7 },
+  ccColor: { ch: 3, num: 7 },
+
+  keyOffset: 0, // Halbtöne, gespiegelt: + = tiefere Noten
+
+  activeNotes: new Map(),
+  fadeLoopRunning: false,
+
+  lastSendTime: 0,
+  pendingTimeout: null,
+};
+
+const monitorLog = [];
+
+/* ============================================================
+   DOM
+   ============================================================ */
+const $ = (id) => document.getElementById(id);
+const dom = {
+  wledIp:        $("wled-ip"),
+  wledConnect:   $("wled-connect"),
+  wledStatus:    $("wled-status"),
+  midiDevice:    $("midi-device"),
+  midiStatus:    $("midi-status"),
+  midiRequest:   $("midi-request"),
+  ledStart:      $("led-start"),
+  ledEnd:        $("led-end"),
+  ledStartVal:   $("led-start-val"),
+  ledEndVal:     $("led-end-val"),
+  fadeOut:       $("fade-out"),
+  fadeOutVal:    $("fade-out-val"),
+  brightness:    $("brightness"),
+  brightnessVal: $("brightness-val"),
+  color:         $("color"),
+  colorVal:      $("color-val"),
+  ccFade:        $("cc-fade"),
+  ccFadeCh:      $("cc-fade-ch"),
+  ccBrightness:  $("cc-brightness"),
+  ccBrightnessCh:$("cc-brightness-ch"),
+  ccColor:       $("cc-color"),
+  ccColorCh:     $("cc-color-ch"),
+  ccFadeCell:    $("cc-fade-cell"),
+  ccBrightCell:  $("cc-brightness-cell"),
+  ccColorCell:   $("cc-color-cell"),
+  keyOffset:     $("key-offset"),
+  keyOffsetVal:  $("key-offset-val"),
+  keyRange:      $("key-range"),
+  monitorLog:    $("monitor-log"),
+  monitorClear:  $("monitor-clear"),
+  ledRow:        $("led-row"),
+  legendMid:     $("legend-mid"),
+};
+
+/* ============================================================
+   Helpers
+   ============================================================ */
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+function noteName(n) {
+  const note = NOTE_NAMES[((n % 12) + 12) % 12];
+  const octave = Math.floor(n / 12) - 1;
+  return note + octave;
+}
+
+function effectiveFirstNote() {
+  // Slider ist gespiegelt: +12 (Default) entspricht der Keyboard-Standard-
+  // einstellung, bei der das Keyboard eine Oktave höher sendet als C2.
+  return clamp(BASE_FIRST_NOTE - state.keyOffset, 0, 127 - NUM_KEYS + 1);
+}
+function effectiveLastNote() {
+  return effectiveFirstNote() + NUM_KEYS - 1;
+}
+
+function hexToRgb(hex) {
+  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
+  if (!m) return { r: 255, g: 255, b: 255 };
+  return {
+    r: parseInt(m[1], 16),
+    g: parseInt(m[2], 16),
+    b: parseInt(m[3], 16),
+  };
+}
+function rgbToHex(r, g, b) {
+  return "#" + [r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("");
+}
+function rgbToHsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h, s, l = (max + min) / 2;
+  if (max === min) {
+    h = s = 0;
+  } else {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+      case g: h = (b - r) / d + 2; break;
+      case b: h = (r - g) / d + 4; break;
+    }
+    h *= 60;
+  }
+  return [h, s, l];
+}
+function hslToRgb(h, s, l) {
+  h = ((h % 360) + 360) % 360;
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = l - c / 2;
+  let r, g, b;
+  if (h < 60)       [r, g, b] = [c, x, 0];
+  else if (h < 120) [r, g, b] = [x, c, 0];
+  else if (h < 180) [r, g, b] = [0, c, x];
+  else if (h < 240) [r, g, b] = [0, x, c];
+  else if (h < 300) [r, g, b] = [x, 0, c];
+  else              [r, g, b] = [c, 0, x];
+  return {
+    r: Math.round((r + m) * 255),
+    g: Math.round((g + m) * 255),
+    b: Math.round((b + m) * 255),
+  };
+}
+
+/* ============================================================
+   LED-Visualisierung
+   ============================================================ */
+const ledElements = [];
+function buildLedVisuals() {
+  dom.ledRow.innerHTML = "";
+  ledElements.length = 0;
+  for (let i = 0; i < TOTAL_LEDS; i++) {
+    const el = document.createElement("div");
+    el.className = "led inactive";
+    el.title = "LED " + i;
+    dom.ledRow.appendChild(el);
+    ledElements.push(el);
+  }
+}
+
+/* ============================================================
+   Mapping: MIDI-Note → LED-Segment
+   ============================================================ */
+function getNoteSegment(note) {
+  const firstNote = effectiveFirstNote();
+  const index = note - firstNote;
+  if (index < 0 || index >= NUM_KEYS) return null;
+
+  const usableLeds = (state.ledEnd - state.ledStart) + 1;
+  if (usableLeds <= 0) return null;
+
+  const segmentSize = Math.floor(usableLeds / NUM_KEYS);
+  const remainder   = usableLeds % NUM_KEYS;
+
+  let segStart = state.ledStart;
+  for (let i = 0; i < index; i++) {
+    const sz = i < remainder ? segmentSize + 1 : segmentSize;
+    segStart += sz;
+  }
+  const mySize = index < remainder ? segmentSize + 1 : segmentSize;
+  return { start: segStart, end: segStart + mySize - 1 };
+}
+
+/* ============================================================
+   Velocity → Helligkeit
+   ============================================================ */
+function velocityToBrightness(velocity) {
+  return (velocity / 127) * (state.maxBrightnessPct / 100) * 255;
+}
+
+/* ============================================================
+   LED-Color-Map
+   ============================================================ */
+function buildLedColorMap() {
+  const map = new Map();
+  for (let i = 0; i < TOTAL_LEDS; i++) {
+    if (i < state.ledStart || i > state.ledEnd) {
+      map.set(i, null);
+    } else {
+      map.set(i, [0, 0, 0]);
+    }
+  }
+  for (const [note, n] of state.activeNotes) {
+    const seg = getNoteSegment(note);
+    if (!seg) continue;
+    const factor = n.currentBrightness / 255;
+    const r = Math.round(n.r * factor);
+    const g = Math.round(n.g * factor);
+    const b = Math.round(n.b * factor);
+    for (let i = seg.start; i <= seg.end; i++) {
+      if (i >= state.ledStart && i <= state.ledEnd) {
+        map.set(i, [r, g, b]);
+      }
+    }
+  }
+  return map;
+}
+
+function updateVisualization() {
+  const map = buildLedColorMap();
+  for (let i = 0; i < TOTAL_LEDS; i++) {
+    const el = ledElements[i];
+    const c = map.get(i);
+    if (c === null) {
+      el.classList.add("inactive");
+      el.classList.remove("active");
+      el.style.backgroundColor = "";
+    } else {
+      el.classList.remove("inactive");
+      el.classList.toggle("active", c[0] > 0 || c[1] > 0 || c[2] > 0);
+      el.style.backgroundColor = "rgb(" + c[0] + "," + c[1] + "," + c[2] + ")";
+    }
+  }
+}
+
+/* ============================================================
+   WLED
+   ============================================================ */
+function buildWledPayload() {
+  const map = buildLedColorMap();
+  const i = [];
+  for (let idx = state.ledStart; idx <= state.ledEnd; idx++) {
+    const c = map.get(idx) || [0, 0, 0];
+    i.push(idx, c);
+  }
+  return { seg: [{ id: 0, i: i }] };
+}
+
+function sendToWledNow() {
+  state.lastSendTime = performance.now();
+  const payload = buildWledPayload();
+  fetch("http://" + state.wledIp + "/json/state", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  })
+    .then((res) => {
+      if (!res.ok && res.status !== 0) {
+        setWledStatus(false, "HTTP " + res.status);
+      } else {
+        setWledStatus(true);
+      }
+    })
+    .catch(() => {});
+}
+
+function scheduleWledSend() {
+  const now = performance.now();
+  const elapsed = now - state.lastSendTime;
+  if (elapsed >= MIN_SEND_INTERVAL) {
+    if (state.pendingTimeout) {
+      clearTimeout(state.pendingTimeout);
+      state.pendingTimeout = null;
+    }
+    sendToWledNow();
+  } else if (!state.pendingTimeout) {
+    const delay = MIN_SEND_INTERVAL - elapsed;
+    state.pendingTimeout = setTimeout(() => {
+      state.pendingTimeout = null;
+      sendToWledNow();
+    }, delay);
+  }
+}
+
+/* ============================================================
+   Fade-Engine
+   ============================================================ */
+function startFadeLoop() {
+  if (state.fadeLoopRunning) return;
+  state.fadeLoopRunning = true;
+
+  const loop = () => {
+    if (state.activeNotes.size === 0) {
+      state.fadeLoopRunning = false;
+      return;
+    }
+    const now = performance.now();
+    let dirty = false;
+    for (const [note, n] of state.activeNotes) {
+      const elapsed = now - n.fadeStartTime;
+      if (elapsed >= state.fadeOutMs) {
+        state.activeNotes.delete(note);
+        dirty = true;
+      } else {
+        n.currentBrightness = n.startBrightness * (1 - elapsed / state.fadeOutMs);
+        dirty = true;
+      }
+    }
+    if (dirty) {
+      updateVisualization();
+      scheduleWledSend();
+    }
+    if (state.activeNotes.size > 0) {
+      requestAnimationFrame(loop);
+    } else {
+      state.fadeLoopRunning = false;
+    }
+  };
+  requestAnimationFrame(loop);
+}
+
+function noteOn(note, velocity) {
+  const firstNote = effectiveFirstNote();
+  const lastNote = effectiveLastNote();
+  if (note < firstNote || note > lastNote) return;
+  if (velocity === 0) { noteOff(note); return; }
+
+  const brightness = velocityToBrightness(velocity);
+  state.activeNotes.set(note, {
+    r: state.color.r,
+    g: state.color.g,
+    b: state.color.b,
+    startBrightness: brightness,
+    currentBrightness: brightness,
+    fadeStartTime: 0,
+  });
+  updateVisualization();
+  scheduleWledSend();
+}
+
+function noteOff(note) {
+  const n = state.activeNotes.get(note);
+  if (!n) return;
+  n.startBrightness = n.currentBrightness;
+  n.fadeStartTime = performance.now();
+  startFadeLoop();
+}
+
+/* ============================================================
+   MIDI-Monitor
+   ============================================================ */
+function classifyMidi(bytes) {
+  const [status, d1, d2] = bytes;
+  const cmd = status & 0xf0;
+  const channel = (status & 0x0f) + 1;
+  const hex = Array.from(bytes).map(b => b.toString(16).padStart(2, "0").toUpperCase()).join(" ");
+  let type, detail, match = null;
+
+  if (cmd === 0x90) {
+    type = d2 > 0 ? "Note On" : "Note Off";
+    detail = "Note " + d1 + " " + noteName(d1) + " · Vel " + d2;
+  } else if (cmd === 0x80) {
+    type = "Note Off";
+    detail = "Note " + d1 + " " + noteName(d1) + " · Vel " + d2;
+  } else if (cmd === 0xB0) {
+    type = "CC";
+    detail = "CC #" + d1 + " = " + d2;
+    if (matchesCcConfig(channel, d1, state.ccFade)) match = "fade";
+    else if (matchesCcConfig(channel, d1, state.ccBrightness)) match = "brightness";
+    else if (matchesCcConfig(channel, d1, state.ccColor)) match = "color";
+  } else if (cmd === 0xC0) {
+    type = "Program";
+    detail = "Program " + d1;
+  } else if (cmd === 0xD0) {
+    type = "Pressure";
+    detail = "Pressure " + d1;
+  } else if (cmd === 0xE0) {
+    type = "PitchBend";
+    const v = (d2 << 7) | d1;
+    detail = v + " (" + Math.round((v - 8192) / 8192 * 100) + "%)";
+  } else if (cmd === 0xF0) {
+    type = "Sys/Common";
+    detail = bytes.length + " bytes";
+  } else {
+    type = "Andere";
+    detail = d1 + " " + d2;
+  }
+
+  return { time: new Date(), hex, channel, type, detail, match };
+}
+
+function logMidiMessage(bytes) {
+  monitorLog.unshift(classifyMidi(bytes));
+  if (monitorLog.length > MAX_MONITOR_ENTRIES) monitorLog.pop();
+  renderMonitor();
+}
+
+function renderMonitor() {
+  const log = dom.monitorLog;
+  log.innerHTML = "";
+  if (monitorLog.length === 0) {
+    const el = document.createElement("div");
+    el.className = "monitor-empty";
+    el.textContent = "Noch keine Nachrichten — spiele eine Taste oder bewege einen Regler";
+    log.appendChild(el);
+    return;
+  }
+  const frag = document.createDocumentFragment();
+  for (const entry of monitorLog) {
+    const el = document.createElement("div");
+    el.className = "monitor-entry t-" + entry.type.replace(/\s+/g, "");
+    if (entry.match) el.classList.add("match-" + entry.match);
+    const timeStr = entry.time.toISOString().substr(11, 12);
+    el.innerHTML =
+      '<span class="monitor-time">' + timeStr + '</span>' +
+      '<span class="monitor-type">' + entry.type + '</span>' +
+      '<span class="monitor-detail">' + entry.detail + '</span>' +
+      '<span class="monitor-channel">Ch' + entry.channel + '</span>' +
+      '<span class="monitor-hex">' + entry.hex + '</span>';
+    frag.appendChild(el);
+  }
+  log.appendChild(frag);
+}
+
+/* ============================================================
+   MIDI
+   ============================================================ */
+function setMidiStatus(kind, text) {
+  dom.midiStatus.className = "status " + kind;
+  dom.midiStatus.textContent = text;
+}
+
+function populateMidiDevices() {
+  if (!state.midiAccess) return;
+  const inputs = [];
+  state.midiAccess.inputs.forEach((input) => inputs.push(input));
+  dom.midiDevice.innerHTML = "";
+  if (inputs.length === 0) {
+    const opt = document.createElement("option");
+    opt.textContent = "Kein Gerät gefunden";
+    dom.midiDevice.appendChild(opt);
+    dom.midiDevice.disabled = true;
+    return;
+  }
+  inputs.forEach((input, idx) => {
+    const opt = document.createElement("option");
+    opt.value = input.id;
+    opt.textContent = input.name || ("Eingang " + idx);
+    dom.midiDevice.appendChild(opt);
+  });
+  dom.midiDevice.disabled = false;
+  attachMidiInput(inputs[0]);
+}
+
+function flashCcCell(cell) {
+  cell.classList.remove("flash");
+  void cell.offsetWidth;
+  cell.classList.add("flash");
+}
+
+function setColorHue(newHue) {
+  const [h, s, l] = rgbToHsl(state.color.r, state.color.g, state.color.b);
+  state.color = hslToRgb(newHue, s, l);
+  const hex = rgbToHex(state.color.r, state.color.g, state.color.b);
+  dom.color.value = hex;
+  dom.colorVal.textContent = hex;
+}
+
+function matchesCcConfig(channel, ccNum, config) {
+  return ccNum === config.num && (config.ch === 0 || config.ch === channel);
+}
+
+function handleCcMessage(channel, ccNum, ccVal) {
+  if (matchesCcConfig(channel, ccNum, state.ccFade)) {
+    state.fadeOutMs = Math.round((ccVal / 127) * 3000);
+    dom.fadeOut.value = state.fadeOutMs;
+    dom.fadeOutVal.textContent = state.fadeOutMs + " ms";
+    flashCcCell(dom.ccFadeCell);
+  }
+  if (matchesCcConfig(channel, ccNum, state.ccBrightness)) {
+    state.maxBrightnessPct = Math.round((ccVal / 127) * 100);
+    dom.brightness.value = state.maxBrightnessPct;
+    dom.brightnessVal.textContent = state.maxBrightnessPct + " %";
+    flashCcCell(dom.ccBrightCell);
+  }
+  if (matchesCcConfig(channel, ccNum, state.ccColor)) {
+    const hue = (ccVal / 127) * 360;
+    setColorHue(hue);
+    flashCcCell(dom.ccColorCell);
+  }
+}
+
+function attachMidiInput(input) {
+  if (state.midiInput) {
+    state.midiInput.onmidimessage = null;
+  }
+  state.midiInput = input;
+  monitorLog.length = 0;
+  renderMonitor();
+  if (!input) return;
+  input.onmidimessage = (e) => {
+    logMidiMessage(Array.from(e.data));
+    const [status, d1, d2] = e.data;
+    const cmd = status & 0xf0;
+    const channel = (status & 0x0f) + 1;
+    if (cmd === 0x90) {
+      if (d2 === 0) noteOff(d1);
+      else noteOn(d1, d2);
+    } else if (cmd === 0x80) {
+      noteOff(d1);
+    } else if (cmd === 0xB0) {
+      handleCcMessage(channel, d1, d2);
+    }
+  };
+  setMidiStatus("ok", "Verbunden: " + (input.name || input.id));
+}
+
+async function requestMidiAccess() {
+  if (!navigator.requestMIDIAccess) {
+    setMidiStatus("err", "Web MIDI API nicht verfügbar (nur Chrome/Edge)");
+    return;
+  }
+  try {
+    const access = await navigator.requestMIDIAccess({ sysex: false });
+    state.midiAccess = access;
+    setMidiStatus("ok", "Zugriff gewährt");
+    populateMidiDevices();
+    access.onstatechange = () => populateMidiDevices();
+  } catch (err) {
+    setMidiStatus("err", "Zugriff verweigert");
+  }
+}
+
+/* ============================================================
+   WLED-Verbindung
+   ============================================================ */
+function setWledStatus(ok, detail) {
+  state.wledOk = !!ok;
+  if (ok) {
+    dom.wledStatus.className = "status ok";
+    dom.wledStatus.textContent = "Verbunden" + (detail ? " (" + detail + ")" : "");
+  } else {
+    dom.wledStatus.className = "status err";
+    dom.wledStatus.textContent = "Nicht erreichbar" + (detail ? " (" + detail + ")" : "");
+  }
+}
+
+async function testWledConnection() {
+  const ip = dom.wledIp.value.trim();
+  state.wledIp = ip;
+  if (!ip) {
+    setWledStatus(false, "keine IP");
+    return;
+  }
+  dom.wledStatus.className = "status warn";
+  dom.wledStatus.textContent = "Teste…";
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 2000);
+    const res = await fetch("http://" + ip + "/json/info", { signal: ctrl.signal });
+    clearTimeout(t);
+    if (!res.ok) {
+      setWledStatus(false, "HTTP " + res.status);
+      return;
+    }
+    const data = await res.json();
+    setWledStatus(true, data && data.ver ? "WLED " + data.ver : undefined);
+  } catch (err) {
+    setWledStatus(false, "Timeout / Netzwerk");
+  }
+}
+
+/* ============================================================
+   Reset / Anzeigen
+   ============================================================ */
+function resetActiveNotes() {
+  state.activeNotes.clear();
+  if (state.pendingTimeout) {
+    clearTimeout(state.pendingTimeout);
+    state.pendingTimeout = null;
+  }
+  state.lastSendTime = 0;
+  const i = [];
+  for (let idx = 0; idx < TOTAL_LEDS; idx++) {
+    i.push(idx, [0, 0, 0]);
+  }
+  fetch("http://" + state.wledIp + "/json/state", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ seg: [{ id: 0, i: i }] }),
+  }).catch(() => {});
+  state.lastSendTime = performance.now();
+  updateVisualization();
+}
+
+function updateKeyRangeDisplay() {
+  const first = effectiveFirstNote();
+  const last = effectiveLastNote();
+  const txt = noteName(first) + "–" + noteName(last) + " (" + first + "–" + last + ")";
+  dom.keyRange.textContent = txt;
+  dom.legendMid.textContent = txt;
+}
+
+/* ============================================================
+   UI-Event-Handler
+   ============================================================ */
+function bindUi() {
+  dom.wledConnect.addEventListener("click", testWledConnection);
+  dom.wledIp.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") testWledConnection();
+  });
+
+  dom.midiRequest.addEventListener("click", requestMidiAccess);
+  dom.midiDevice.addEventListener("change", () => {
+    if (!state.midiAccess) return;
+    const id = dom.midiDevice.value;
+    const input = state.midiAccess.inputs.get(id);
+    attachMidiInput(input);
+  });
+
+  dom.ledStart.addEventListener("input", () => {
+    let v = clamp(parseInt(dom.ledStart.value, 10) || 0, 0, TOTAL_LEDS - 1);
+    state.ledStart = v;
+    dom.ledStart.value = v;
+    dom.ledStartVal.textContent = v;
+    resetActiveNotes();
+  });
+  dom.ledEnd.addEventListener("input", () => {
+    let v = clamp(parseInt(dom.ledEnd.value, 10) || 0, 0, TOTAL_LEDS - 1);
+    state.ledEnd = v;
+    dom.ledEnd.value = v;
+    dom.ledEnd.value = v;
+    dom.ledEndVal.textContent = v;
+    resetActiveNotes();
+  });
+
+  dom.fadeOut.addEventListener("input", () => {
+    state.fadeOutMs = parseInt(dom.fadeOut.value, 10);
+    dom.fadeOutVal.textContent = state.fadeOutMs + " ms";
+  });
+  dom.brightness.addEventListener("input", () => {
+    state.maxBrightnessPct = parseInt(dom.brightness.value, 10);
+    dom.brightnessVal.textContent = state.maxBrightnessPct + " %";
+  });
+  dom.color.addEventListener("input", () => {
+    state.color = hexToRgb(dom.color.value);
+    dom.colorVal.textContent = dom.color.value;
+  });
+  dom.colorVal.textContent = dom.color.value;
+
+  function bindCcPair(chInput, numInput, stateKey) {
+    const update = () => {
+      const ch = parseInt(chInput.value, 10);
+      const num = parseInt(numInput.value, 10);
+      state[stateKey] = {
+        ch: isNaN(ch) ? 0 : clamp(ch, 0, 16),
+        num: isNaN(num) ? 0 : clamp(num, 0, 127),
+      };
+    };
+    chInput.addEventListener("input", update);
+    numInput.addEventListener("input", update);
+    chInput.addEventListener("blur", () => { chInput.value = state[stateKey].ch; });
+    numInput.addEventListener("blur", () => { numInput.value = state[stateKey].num; });
+  }
+  bindCcPair(dom.ccFadeCh, dom.ccFade, "ccFade");
+  bindCcPair(dom.ccBrightnessCh, dom.ccBrightness, "ccBrightness");
+  bindCcPair(dom.ccColorCh, dom.ccColor, "ccColor");
+
+  dom.keyOffset.addEventListener("input", () => {
+    let v = parseInt(dom.keyOffset.value, 10) || 0;
+    v = clamp(v, -36, 36);
+    state.keyOffset = v;
+    const sign = v > 0 ? "+" : "";
+    dom.keyOffsetVal.textContent = sign + v;
+    updateKeyRangeDisplay();
+    resetActiveNotes();
+  });
+
+  dom.monitorClear.addEventListener("click", () => {
+    monitorLog.length = 0;
+    renderMonitor();
+  });
+}
+
+/* ============================================================
+   Init
+   ============================================================ */
+function init() {
+  buildLedVisuals();
+  bindUi();
+  updateKeyRangeDisplay();
+  renderMonitor();
+  updateVisualization();
+
+  if (navigator.requestMIDIAccess) {
+    setMidiStatus("warn", "Zugriff anfordern");
+  } else {
+    setMidiStatus("err", "Web MIDI API nicht verfügbar");
+  }
+}
+
+init();
+</script>
+</body>
+</html>
