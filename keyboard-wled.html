@@ -387,13 +387,13 @@
       </div>
       <div class="row">
         <label for="brightness">Helligkeit</label>
-        <input type="range" id="brightness" min="0" max="100" value="70" step="1">
-        <span class="value" id="brightness-val">70 %</span>
+        <input type="range" id="brightness" min="0" max="100" value="100" step="1">
+        <span class="value" id="brightness-val">100 %</span>
       </div>
       <div class="row">
         <label for="fade-out">Fade-Out</label>
-        <input type="range" id="fade-out" min="0" max="3000" value="800" step="10">
-        <span class="value" id="fade-out-val">800 ms</span>
+        <input type="range" id="fade-out" min="0" max="3000" value="300" step="10">
+        <span class="value" id="fade-out-val">300 ms</span>
       </div>
 
 
@@ -500,8 +500,8 @@ const state = {
   ledStart: 0,
   ledEnd: 78,
 
-  fadeOutMs: 800,
-  maxBrightnessPct: 70,
+  fadeOutMs: 300,
+  maxBrightnessPct: 100,
   color: { r: 0xff, g: 0x64, b: 0x00 },
 
   ccFade: { ch: 3, num: 7 },
@@ -828,6 +828,10 @@ function startFadeLoop() {
     const now = performance.now();
     let dirty = false;
     for (const [note, n] of state.activeNotes) {
+      // Noch gehaltene Tasten überspringen — sie dürfen nicht
+      // versehentlich vom Fade-Loop gelöscht werden, wenn andere
+      // Noten im selben Frame gerade ausfaden.
+      if (!n.isFading) continue;
       const elapsed = now - n.fadeStartTime;
       if (elapsed >= state.fadeOutMs) {
         state.activeNotes.delete(note);
@@ -864,6 +868,7 @@ function noteOn(note, velocity) {
     b: state.color.b,
     startBrightness: brightness,
     currentBrightness: brightness,
+    isFading: false,
     fadeStartTime: 0,
   });
   updateVisualization();
@@ -875,6 +880,7 @@ function noteOff(note) {
   if (!n) return;
   n.startBrightness = n.currentBrightness;
   n.fadeStartTime = performance.now();
+  n.isFading = true;
   startFadeLoop();
 }
 
