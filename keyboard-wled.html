@@ -236,6 +236,26 @@
     margin: 6px 0 0 0;
   }
   .help .dim { color: #4b5260; font-size: 10px; }
+  .check-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .check-row input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: #4a90e2;
+    cursor: pointer;
+    margin: 0;
+    flex: none;
+  }
+  .check-row label {
+    flex: 1;
+    font-size: 13px;
+    color: #b6bcc6;
+    cursor: pointer;
+  }
   code {
     font-family: "SF Mono", Menlo, Consolas, monospace;
     background: #0f1216;
@@ -361,9 +381,9 @@
     <div class="card">
       <h2>Regler</h2>
       <div class="row">
-        <label for="fade-out">Fade-Out</label>
-        <input type="range" id="fade-out" min="0" max="3000" value="800" step="10">
-        <span class="value" id="fade-out-val">800 ms</span>
+        <label for="color">Farbe</label>
+        <input type="color" id="color" value="#ff6400">
+        <span class="value" id="color-val">#ff6400</span>
       </div>
       <div class="row">
         <label for="brightness">Helligkeit</label>
@@ -371,22 +391,23 @@
         <span class="value" id="brightness-val">70 %</span>
       </div>
       <div class="row">
-        <label for="color">Farbe</label>
-        <input type="color" id="color" value="#ff6400">
-        <span class="value" id="color-val">#ff6400</span>
+        <label for="fade-out">Fade-Out</label>
+        <input type="range" id="fade-out" min="0" max="3000" value="800" step="10">
+        <span class="value" id="fade-out-val">800 ms</span>
       </div>
 
+
       <div class="divider"></div>
-      <p class="help">MIDI CC der drei Hardware-Regler (Ch = 0 = beliebig):</p>
+      <p class="help">MIDI CC der drei Hardware-Regler (Regler 1 = Ch 1, Regler 2 = Ch 2, Regler 3 = Ch 3):</p>
       <div class="cc-grid">
-        <div class="cc-cell" id="cc-fade-cell">
-          <div class="cc-name">Fade-Out</div>
+        <div class="cc-cell" id="cc-color-cell">
+          <div class="cc-name">Farbe (Hue)</div>
           <div class="cc-inputs">
             <span class="cc-label">Ch</span>
-            <input type="number" id="cc-fade-ch" min="0" max="16" value="1">
+            <input type="number" id="cc-color-ch" min="0" max="16" value="1">
             <span class="cc-sep">·</span>
             <span class="cc-label">CC</span>
-            <input type="number" id="cc-fade" min="0" max="127" value="7">
+            <input type="number" id="cc-color" min="0" max="127" value="7">
           </div>
         </div>
         <div class="cc-cell" id="cc-brightness-cell">
@@ -399,14 +420,14 @@
             <input type="number" id="cc-brightness" min="0" max="127" value="7">
           </div>
         </div>
-        <div class="cc-cell" id="cc-color-cell">
-          <div class="cc-name">Farbe (Hue)</div>
+        <div class="cc-cell" id="cc-fade-cell">
+          <div class="cc-name">Fade-Out</div>
           <div class="cc-inputs">
             <span class="cc-label">Ch</span>
-            <input type="number" id="cc-color-ch" min="0" max="16" value="3">
+            <input type="number" id="cc-fade-ch" min="0" max="16" value="3">
             <span class="cc-sep">·</span>
             <span class="cc-label">CC</span>
-            <input type="number" id="cc-color" min="0" max="127" value="7">
+            <input type="number" id="cc-fade" min="0" max="127" value="7">
           </div>
         </div>
       </div>
@@ -419,7 +440,15 @@
         <input type="range" id="key-offset" min="-36" max="36" value="0" step="1">
         <span class="value" id="key-offset-val">0</span>
       </div>
-      <p class="help">Aktiver Bereich: <code id="key-range">C3–C5 (48–72)</code> · 25 Tasten<br>
+      <div class="check-row">
+        <input type="checkbox" id="white-keys-only">
+        <label for="white-keys-only">Nur weiße Tasten</label>
+      </div>
+      <div class="check-row">
+        <input type="checkbox" id="velocity-enabled" checked>
+        <label for="velocity-enabled">Anschlagsdynamik berücksichtigen</label>
+      </div>
+      <p class="help">Aktiver Bereich: <code id="key-range">C3–C5 (48–72)</code> · <span id="key-count">25</span> Tasten<br>
         <span class="dim">Versatz 0 = Standardoktave des Donner DMK 25 Pro</span></p>
     </div>
 
@@ -475,11 +504,13 @@ const state = {
   maxBrightnessPct: 70,
   color: { r: 0xff, g: 0x64, b: 0x00 },
 
-  ccFade: { ch: 1, num: 7 },
+  ccFade: { ch: 3, num: 7 },
   ccBrightness: { ch: 2, num: 7 },
-  ccColor: { ch: 3, num: 7 },
+  ccColor: { ch: 1, num: 7 },
 
-  keyOffset: 0, // Halbtöne, gespiegelt: + = tiefere Noten
+  keyOffset: 0,  // Halbtöne, gespiegelt: + = tiefere Noten
+  whiteKeysOnly: false,
+  velocityEnabled: true,
 
   activeNotes: new Map(),
   fadeLoopRunning: false,
@@ -523,6 +554,9 @@ const dom = {
   keyOffset:     $("key-offset"),
   keyOffsetVal:  $("key-offset-val"),
   keyRange:      $("key-range"),
+  keyCount:      $("key-count"),
+  whiteKeysOnly: $("white-keys-only"),
+  velocityEnabled: $("velocity-enabled"),
   monitorLog:    $("monitor-log"),
   monitorClear:  $("monitor-clear"),
   ledRow:        $("led-row"),
@@ -538,6 +572,20 @@ function noteName(n) {
   const note = NOTE_NAMES[((n % 12) + 12) % 12];
   const octave = Math.floor(n / 12) - 1;
   return note + octave;
+}
+
+function isWhiteKey(n) {
+  // Mod 12: 0=C, 2=D, 4=E, 5=F, 7=G, 9=A, 11=B
+  const m = ((n % 12) + 12) % 12;
+  return m === 0 || m === 2 || m === 4 || m === 5 || m === 7 || m === 9 || m === 11;
+}
+
+function countWhiteKeysInRange(first, last) {
+  let c = 0;
+  for (let n = first; n <= last; n++) {
+    if (isWhiteKey(n)) c++;
+  }
+  return c;
 }
 
 function effectiveFirstNote() {
@@ -619,11 +667,35 @@ function buildLedVisuals() {
    ============================================================ */
 function getNoteSegment(note) {
   const firstNote = effectiveFirstNote();
-  const index = note - firstNote;
-  if (index < 0 || index >= NUM_KEYS) return null;
-
+  const lastNote = effectiveLastNote();
   const usableLeds = (state.ledEnd - state.ledStart) + 1;
   if (usableLeds <= 0) return null;
+
+  if (state.whiteKeysOnly) {
+    if (!isWhiteKey(note)) return null;
+    // Liste der weißen Tasten im aktiven Bereich, Index dieser Note
+    const whiteKeys = [];
+    for (let n = firstNote; n <= lastNote; n++) {
+      if (isWhiteKey(n)) whiteKeys.push(n);
+    }
+    const numWhite = whiteKeys.length;
+    if (numWhite === 0) return null;
+    const idx = whiteKeys.indexOf(note);
+    if (idx < 0) return null;
+
+    const segmentSize = Math.floor(usableLeds / numWhite);
+    const remainder   = usableLeds % numWhite;
+    let segStart = state.ledStart;
+    for (let i = 0; i < idx; i++) {
+      const sz = i < remainder ? segmentSize + 1 : segmentSize;
+      segStart += sz;
+    }
+    const mySize = idx < remainder ? segmentSize + 1 : segmentSize;
+    return { start: segStart, end: segStart + mySize - 1 };
+  }
+
+  const index = note - firstNote;
+  if (index < 0 || index >= NUM_KEYS) return null;
 
   const segmentSize = Math.floor(usableLeds / NUM_KEYS);
   const remainder   = usableLeds % NUM_KEYS;
@@ -641,6 +713,9 @@ function getNoteSegment(note) {
    Velocity → Helligkeit
    ============================================================ */
 function velocityToBrightness(velocity) {
+  if (!state.velocityEnabled) {
+    return (state.maxBrightnessPct / 100) * 255;
+  }
   return (velocity / 127) * (state.maxBrightnessPct / 100) * 255;
 }
 
@@ -779,6 +854,7 @@ function noteOn(note, velocity) {
   const firstNote = effectiveFirstNote();
   const lastNote = effectiveLastNote();
   if (note < firstNote || note > lastNote) return;
+  if (state.whiteKeysOnly && !isWhiteKey(note)) return;
   if (velocity === 0) { noteOff(note); return; }
 
   const brightness = velocityToBrightness(velocity);
@@ -1054,6 +1130,14 @@ function updateKeyRangeDisplay() {
   const last = effectiveLastNote();
   const txt = noteName(first) + "–" + noteName(last) + " (" + first + "–" + last + ")";
   dom.keyRange.textContent = txt;
+  if (dom.keyCount) {
+    if (state.whiteKeysOnly) {
+      const wc = countWhiteKeysInRange(first, last);
+      dom.keyCount.textContent = wc + " weiß";
+    } else {
+      dom.keyCount.textContent = NUM_KEYS;
+    }
+  }
   dom.legendMid.textContent = txt;
 }
 
@@ -1130,6 +1214,16 @@ function bindUi() {
     dom.keyOffsetVal.textContent = sign + v;
     updateKeyRangeDisplay();
     resetActiveNotes();
+  });
+
+  dom.whiteKeysOnly.addEventListener("change", () => {
+    state.whiteKeysOnly = dom.whiteKeysOnly.checked;
+    updateKeyRangeDisplay();
+    resetActiveNotes();
+  });
+
+  dom.velocityEnabled.addEventListener("change", () => {
+    state.velocityEnabled = dom.velocityEnabled.checked;
   });
 
   dom.monitorClear.addEventListener("click", () => {
