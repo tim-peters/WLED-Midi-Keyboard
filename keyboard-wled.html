@@ -269,6 +269,49 @@
     text-align: center;
   }
 
+  .cors-note {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    background: rgba(251, 191, 36, 0.08);
+    border: 1px solid rgba(251, 191, 36, 0.35);
+    color: #fde68a;
+    padding: 12px 36px 12px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    max-width: 340px;
+    z-index: 100;
+    display: none;
+    line-height: 1.5;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  }
+  .cors-note.visible { display: block; }
+  .cors-note .cors-title {
+    font-weight: 600;
+    color: #fbbf24;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .cors-note a { color: #93c5fd; text-decoration: none; }
+  .cors-note a:hover { text-decoration: underline; }
+  .cors-note .cors-close {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    background: transparent;
+    color: #8a93a0;
+    border: 0;
+    font-size: 16px;
+    line-height: 1;
+    padding: 0 4px;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 400;
+  }
+  .cors-note .cors-close:hover { color: #e6e8eb; background: transparent; }
+
   /* MIDI-Monitor (kollabierbar) */
   details.monitor-details {
     background: #1b1f25;
@@ -367,6 +410,14 @@
 </style>
 </head>
 <body>
+  <div id="cors-note" class="cors-note" role="alert">
+    <button class="cors-close" id="cors-close" aria-label="Schließen">&times;</button>
+    <div class="cors-title"><span>⚠</span> CORS-Fehler erkannt</div>
+    Der Browser blockt Anfragen an WLED (Cross-Origin-Policy).<br>
+    Lösung: <strong>CORS-Addon</strong> im Browser installieren — z. B. <em>Allow CORS</em>
+    (Chrome/Firefox) oder WLED-CORS-Plugin auf dem Controller aktivieren.
+  </div>
+
   <h1>Keyboard → WLED</h1>
   <p class="subtitle">MIDI-Keyboard in Echtzeit mit WLED-LED-Strip verbinden</p>
 
@@ -549,6 +600,9 @@ const state = {
 
   lastSendTime: 0,
   pendingTimeout: null,
+
+  corsDetected: false,
+  corsCheckInFlight: false,
 };
 
 const monitorLog = [];
@@ -592,6 +646,8 @@ const dom = {
   ledRow:        $("led-row"),
   legendMid:     $("legend-mid"),
   legendEnd:     $("legend-end"),
+  corsNote:      $("cors-note"),
+  corsClose:     $("cors-close"),
 };
 
 /* ============================================================
@@ -824,7 +880,9 @@ function sendToWledNow() {
         setWledStatus(true);
       }
     })
-    .catch(() => {});
+    .catch(() => {
+      checkCorsAndNotify(state.wledIp);
+    });
 }
 
 function scheduleWledSend() {
@@ -1113,6 +1171,43 @@ function setWledStatus(ok, detail) {
   }
 }
 
+function showCorsNote() {
+  if (dom.corsNote) dom.corsNote.classList.add("visible");
+  state.corsDetected = true;
+}
+
+function hideCorsNote() {
+  if (dom.corsNote) dom.corsNote.classList.remove("visible");
+  state.corsDetected = false;
+}
+
+async function detectCorsError(ip) {
+  if (!ip) return false;
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 1500);
+    await fetch("http://" + ip + "/json/info", {
+      mode: "no-cors",
+      signal: ctrl.signal,
+    });
+    clearTimeout(t);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+async function checkCorsAndNotify(ip) {
+  if (state.corsDetected || state.corsCheckInFlight) return;
+  state.corsCheckInFlight = true;
+  const isCors = await detectCorsError(ip);
+  state.corsCheckInFlight = false;
+  if (isCors) {
+    setWledStatus(false, "CORS blockiert");
+    showCorsNote();
+  }
+}
+
 async function testWledConnection() {
   const ip = dom.wledIp.value.trim();
   state.wledIp = ip;
@@ -1122,19 +1217,28 @@ async function testWledConnection() {
   }
   dom.wledStatus.className = "status warn";
   dom.wledStatus.textContent = "Teste…";
+  let timer = null;
   try {
     const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 2000);
+    timer = setTimeout(() => ctrl.abort(), 2000);
     const res = await fetch("http://" + ip + "/json/info", { signal: ctrl.signal });
-    clearTimeout(t);
+    clearTimeout(timer);
     if (!res.ok) {
       setWledStatus(false, "HTTP " + res.status);
       return;
     }
     const data = await res.json();
     setWledStatus(true, data && data.ver ? "WLED " + data.ver : undefined);
+    hideCorsNote();
   } catch (err) {
-    setWledStatus(false, "Timeout / Netzwerk");
+    if (timer) clearTimeout(timer);
+    const isCors = await detectCorsError(ip);
+    if (isCors) {
+      setWledStatus(false, "CORS blockiert");
+      showCorsNote();
+    } else {
+      setWledStatus(false, "Timeout / Netzwerk");
+    }
   }
 }
 
@@ -1265,6 +1369,10 @@ function bindUi() {
       monitorLog.length = 0;
       renderMonitor();
     });
+  }
+
+  if (dom.corsClose) {
+    dom.corsClose.addEventListener("click", hideCorsNote);
   }
 }
 
