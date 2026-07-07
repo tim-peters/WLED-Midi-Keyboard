@@ -114,6 +114,15 @@
   button:active { background: #3a80d2; }
   button:disabled { background: #2c333d; color: #6b7280; cursor: not-allowed; }
   button.small { padding: 4px 10px; font-size: 12px; }
+  button.ghost {
+    background: transparent;
+    color: #8a93a0;
+    border: 1px solid transparent;
+    margin-top:-10px;
+  }
+  button.ghost:hover { background: #1f242b; color: #e6e8eb; }
+  button.ghost:active { background: #262b33; }
+  button.ghost:disabled { background: transparent; color: #4b5260; border-color: #1f242b; }
   .value {
     flex: 0 0 90px;
     text-align: right;
@@ -221,10 +230,42 @@
     margin-top: 16px;
     margin-bottom: 16px;
   }
+  .visualization-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .color-dot {
+    width: 10px;
+    height: 10px;
+    margin-top:-7px;
+    margin-left:6px;
+    border-radius: 50%;
+    background: #ff6400;
+    box-shadow: 0 0 0 1px #2c333d, 0 0 8px rgba(255, 100, 0, 0.35);
+    transition: background 0.1s linear, box-shadow 0.1s linear;
+  }
+  .visualization:fullscreen .color-dot {
+    width: 18px;
+    height: 18px;
+  }
+  .visualization:fullscreen {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 24px;
+    background: #0a0c0f;
+  }
+  .visualization:fullscreen .visualization-header { margin-bottom: 12px; }
+  .visualization:fullscreen .legend { display: none; }
+  .visualization:fullscreen .led-row { flex: 1; min-height: 0; }
+  .visualization:fullscreen .led { height: auto; flex: 1; min-height: 0; }
   .led-row {
     display: flex;
     gap: 1px;
     margin-bottom: 8px;
+    touch-action: none;
   }
   .led {
     flex: 1;
@@ -371,7 +412,11 @@
   <h1>Keyboard → WLED</h1>
   <p class="subtitle">Connect a MIDI keyboard to a WLED LED strip in real time</p>
 
-  <div class="visualization">
+  <div class="visualization" id="visualization">
+    <div class="visualization-header">
+      <span class="color-dot" id="viz-color-dot" title="Current color"></span>
+      <button id="viz-fullscreen" class="small ghost" type="button" title="Open fullscreen">⛶</button>
+    </div>
     <div class="led-row" id="led-row"></div>
     <div class="legend">
       <span>LED 0</span>
@@ -597,6 +642,9 @@ const dom = {
   ledRow:        $("led-row"),
   legendMid:     $("legend-mid"),
   legendEnd:     $("legend-end"),
+  visualization: $("visualization"),
+  vizFullscreen: $("viz-fullscreen"),
+  vizColorDot:   $("viz-color-dot"),
 };
 
 /* ============================================================
@@ -724,6 +772,39 @@ function buildLedVisuals() {
     e.preventDefault();
   }, { passive: false });
   dom.legendEnd.textContent = "LED " + state.ledEnd;
+}
+
+/* ============================================================
+   Visualization fullscreen toggle
+   ============================================================ */
+function updateColorDot() {
+  const { r, g, b } = state.color;
+  const rgb = `rgb(${r}, ${g}, ${b})`;
+  dom.vizColorDot.style.background = rgb;
+  dom.vizColorDot.style.boxShadow = `0 0 0 1px #2c333d, 0 0 8px ${rgb}55`;
+}
+updateColorDot();
+function toggleVizFullscreen() {
+  const el = dom.visualization;
+  if (document.fullscreenElement) {
+    (document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen).call(document);
+  } else {
+    (el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen).call(el);
+  }
+}
+
+function syncVizFullscreenUI() {
+  const isFs = document.fullscreenElement === dom.visualization;
+  dom.vizFullscreen.textContent = isFs ? "✕" : "⛶";
+  dom.vizFullscreen.title = isFs ? "Exit fullscreen" : "Open fullscreen";
+}
+
+dom.vizFullscreen.addEventListener("click", toggleVizFullscreen);
+document.addEventListener("fullscreenchange", syncVizFullscreenUI);
+document.addEventListener("webkitfullscreenchange", syncVizFullscreenUI);
+
+if (!(dom.visualization.requestFullscreen || dom.visualization.webkitRequestFullscreen || dom.visualization.msRequestFullscreen)) {
+  dom.vizFullscreen.style.display = "none";
 }
 
 function rebuildVisualization() {
@@ -1130,6 +1211,7 @@ function setColorHue(newHue) {
   const hex = rgbToHex(state.color.r, state.color.g, state.color.b);
   dom.color.value = hex;
   dom.colorVal.textContent = hex;
+  updateColorDot();
 }
 
 function matchesCcConfig(channel, ccNum, config) {
@@ -1324,6 +1406,7 @@ function bindUi() {
   dom.color.addEventListener("input", () => {
     state.color = hexToRgb(dom.color.value);
     dom.colorVal.textContent = dom.color.value;
+    updateColorDot();
   });
   dom.colorVal.textContent = dom.color.value;
 
