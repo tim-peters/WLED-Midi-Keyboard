@@ -376,7 +376,7 @@
     <div class="legend">
       <span>LED 0</span>
       <span id="legend-mid">C3–C5 (48–72)</span>
-      <span id="legend-end">LED 78</span>
+      <span id="legend-end">LED 67</span>
     </div>
   </div>
 
@@ -385,7 +385,7 @@
       <h2>Connection</h2>
       <div class="row">
         <label for="wled-ip">WLED IP</label>
-        <input type="text" id="wled-ip" placeholder="e.g. 192.168.178.183" value="192.168.178.183">
+        <input type="text" id="wled-ip" placeholder="e.g. 192.168.178.183">
         <button id="wled-connect">Connect</button>
       </div>
       <div class="row">
@@ -412,6 +412,40 @@
     </div>
 
     <div class="card">
+      <h2>Controls</h2>
+      <div class="row">
+        <label for="color">Color</label>
+        <input type="color" id="color" value="#ff6400">
+        <span class="value" id="color-val">#ff6400</span>
+      </div>
+      <div class="row">
+        <label for="brightness">Brightness</label>
+        <input type="range" id="brightness" min="0" max="100" value="100" step="1">
+        <span class="value" id="brightness-val">100 %</span>
+      </div>
+      <div class="row">
+        <label for="fade-out">Fade-Out</label>
+        <input type="range" id="fade-out" min="0" max="3000" value="300" step="10">
+        <span class="value" id="fade-out-val">300 ms</span>
+      </div>
+
+      <div class="divider"></div>
+      <h2>Keyboard</h2>
+      <div class="row">
+        <label for="key-offset">Offset</label>
+        <input type="range" id="key-offset" min="-36" max="36" value="0" step="1">
+        <span class="value" id="key-offset-val">0</span>
+      </div>
+      <br>
+      <div class="check-row">
+        <input type="checkbox" id="white-keys-only" checked>
+        <label for="white-keys-only">White keys only</label>
+        <input type="checkbox" id="velocity-enabled" checked>
+        <label for="velocity-enabled">Apply velocity sensitivity</label>
+      </div>
+    </div>
+
+    <div class="card">
       <h2>LED Range &amp; Mapping</h2>
       <div class="row">
         <label for="led-start">LED Start</label>
@@ -420,8 +454,8 @@
       </div>
       <div class="row">
         <label for="led-end">LED End</label>
-        <input type="number" id="led-end" min="0" value="78">
-        <span class="value" id="led-end-val">78</span>
+        <input type="number" id="led-end" min="0" value="67">
+        <span class="value" id="led-end-val">67</span>
       </div>
       <p class="help">0-based, inclusive · any strip length</p>
       <div class="divider"></div>
@@ -460,39 +494,6 @@
       </div>
     </div>
 
-    <div class="card">
-      <h2>Controls</h2>
-      <div class="row">
-        <label for="color">Color</label>
-        <input type="color" id="color" value="#ff6400">
-        <span class="value" id="color-val">#ff6400</span>
-      </div>
-      <div class="row">
-        <label for="brightness">Brightness</label>
-        <input type="range" id="brightness" min="0" max="100" value="100" step="1">
-        <span class="value" id="brightness-val">100 %</span>
-      </div>
-      <div class="row">
-        <label for="fade-out">Fade-Out</label>
-        <input type="range" id="fade-out" min="0" max="3000" value="300" step="10">
-        <span class="value" id="fade-out-val">300 ms</span>
-      </div>
-
-      <div class="divider"></div>
-      <h2>Keyboard</h2>
-      <div class="row">
-        <label for="key-offset">Offset</label>
-        <input type="range" id="key-offset" min="-36" max="36" value="0" step="1">
-        <span class="value" id="key-offset-val">0</span>
-      </div>
-      <br>
-      <div class="check-row">
-        <input type="checkbox" id="white-keys-only" checked>
-        <label for="white-keys-only">White keys only</label>
-        <input type="checkbox" id="velocity-enabled" checked>
-        <label for="velocity-enabled">Apply velocity sensitivity</label>
-      </div>
-    </div>
   </div>
 
   <details class="monitor-details">
@@ -526,13 +527,13 @@ const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", 
    State
    ============================================================ */
 const state = {
-  wledIp: "192.168.178.183",
+  wledIp: "",
   wledOk: false,
   midiAccess: null,
   midiInput: null,
 
   ledStart: 0,
-  ledEnd: 78,
+  ledEnd: 67,
 
   fadeOutMs: 300,
   maxBrightnessPct: 100,
@@ -546,12 +547,14 @@ const state = {
   whiteKeysOnly: true,
   velocityEnabled: true,
 
-  activeNotes: new Map(),
   fadeLoopRunning: false,
 
   lastSendTime: 0,
+  lastRenderTime: 0,
   pendingTimeout: null,
 };
+
+const ledStates = new Map();
 
 const monitorLog = [];
 
@@ -678,47 +681,28 @@ function hslToRgb(h, s, l) {
    LED visualization (dynamic, based on state.ledEnd)
    ============================================================ */
 const ledElements = [];
+const ledVizState = [];
 function buildLedVisuals() {
   const total = Math.min(state.ledEnd + 1, MAX_VIS_LEDS);
   dom.ledRow.innerHTML = "";
   ledElements.length = 0;
+  ledVizState.length = 0;
   for (let i = 0; i < total; i++) {
     const el = document.createElement("div");
     el.className = "led inactive";
     el.title = "LED " + i;
     el.addEventListener("mousedown", (e) => {
       if (e.button !== 0) return;
-      const note = getNoteForLedIndex(i);
-      if (note === null) return;
-      if (mouseHeldNote !== null && mouseHeldNote !== note) noteOff(mouseHeldNote);
-      mouseHeldNote = note;
-      noteOn(note, 127);
+      flashLed(i);
       e.preventDefault();
     });
     el.addEventListener("mouseover", (e) => {
       if ((e.buttons & 1) === 0) return;
-      const note = getNoteForLedIndex(i);
-      if (note === null || note === mouseHeldNote) return;
-      if (mouseHeldNote !== null) noteOff(mouseHeldNote);
-      mouseHeldNote = note;
-      noteOn(note, 127);
-    });
-    el.addEventListener("mouseout", (e) => {
-      if ((e.buttons & 1) === 0) return;
-      const note = getNoteForLedIndex(i);
-      if (note === null || note !== mouseHeldNote) return;
-      noteOff(note);
-      mouseHeldNote = null;
-    });
-    el.addEventListener("mouseup", (e) => {
-      if (e.button !== 0) return;
-      const note = getNoteForLedIndex(i);
-      if (note === null || note !== mouseHeldNote) return;
-      noteOff(note);
-      mouseHeldNote = null;
+      flashLed(i);
     });
     dom.ledRow.appendChild(el);
     ledElements.push(el);
+    ledVizState.push({ r: -1, g: -1, b: -1, active: false });
   }
   dom.legendEnd.textContent = "LED " + state.ledEnd;
 }
@@ -774,46 +758,6 @@ function getNoteSegment(note) {
   return { start: segStart, end: segStart + mySize - 1 };
 }
 
-function getNoteForLedIndex(ledIndex) {
-  if (ledIndex < state.ledStart || ledIndex > state.ledEnd) return null;
-  const firstNote = effectiveFirstNote();
-  const lastNote = effectiveLastNote();
-  const usableLeds = (state.ledEnd - state.ledStart) + 1;
-
-  if (state.whiteKeysOnly) {
-    const whiteKeys = [];
-    for (let n = firstNote; n <= lastNote; n++) {
-      if (isWhiteKey(n)) whiteKeys.push(n);
-    }
-    const numWhite = whiteKeys.length;
-    if (numWhite === 0) return null;
-    const segmentSize = Math.floor(usableLeds / numWhite);
-    const remainder   = usableLeds % numWhite;
-    let segStart = state.ledStart;
-    for (let i = 0; i < numWhite; i++) {
-      const sz = i < remainder ? segmentSize + 1 : segmentSize;
-      const segEnd = segStart + sz - 1;
-      if (ledIndex >= segStart && ledIndex <= segEnd) return whiteKeys[i];
-      segStart = segEnd + 1;
-    }
-    return null;
-  }
-
-  const numNotes = lastNote - firstNote + 1;
-  const segmentSize = Math.floor(usableLeds / numNotes);
-  const remainder   = usableLeds % numNotes;
-  let segStart = state.ledStart;
-  for (let i = 0; i < numNotes; i++) {
-    const sz = i < remainder ? segmentSize + 1 : segmentSize;
-    const segEnd = segStart + sz - 1;
-    if (ledIndex >= segStart && ledIndex <= segEnd) return firstNote + i;
-    segStart = segEnd + 1;
-  }
-  return null;
-}
-
-let mouseHeldNote = null;
-
 /* ============================================================
    Velocity → brightness
    ============================================================ */
@@ -827,44 +771,83 @@ function velocityToBrightness(velocity) {
 /* ============================================================
    LED color map
    ============================================================ */
+function flashLed(ledIndex) {
+  if (ledIndex < state.ledStart || ledIndex > state.ledEnd) return;
+  const startBrightness = 255 * (state.maxBrightnessPct / 100);
+  ledStates.set(ledIndex, {
+    startTime: performance.now(),
+    startBrightness: startBrightness,
+    currentBrightness: startBrightness,
+    r: state.color.r,
+    g: state.color.g,
+    b: state.color.b,
+    latched: state.fadeOutMs >= MAX_FADE_MS,
+  });
+  render();
+  startFadeLoop();
+}
+
+const colorMap = new Map();
+const colorPool = [];
+function acquireColor() {
+  return colorPool.length > 0 ? colorPool.pop() : [0, 0, 0];
+}
+function releaseColor(c) {
+  c[0] = 0; c[1] = 0; c[2] = 0;
+  if (colorPool.length < 256) colorPool.push(c);
+}
+
+function render() {
+  state.lastRenderTime = performance.now();
+  updateVisualization();
+  scheduleWledSend();
+}
+
 function buildLedColorMap() {
-  const map = new Map();
-  for (let i = 0; i <= state.ledEnd; i++) {
-    if (i < state.ledStart || i > state.ledEnd) {
-      map.set(i, null);
-    } else {
-      map.set(i, [0, 0, 0]);
-    }
+  for (const c of colorMap.values()) releaseColor(c);
+  colorMap.clear();
+  for (let i = state.ledStart; i <= state.ledEnd; i++) {
+    colorMap.set(i, acquireColor());
   }
-  for (const [note, n] of state.activeNotes) {
-    const seg = getNoteSegment(note);
-    if (!seg) continue;
-    const factor = n.currentBrightness / 255;
-    const r = Math.round(n.r * factor);
-    const g = Math.round(n.g * factor);
-    const b = Math.round(n.b * factor);
-    for (let i = seg.start; i <= seg.end; i++) {
-      if (i >= state.ledStart && i <= state.ledEnd) {
-        map.set(i, [r, g, b]);
-      }
-    }
+  for (const [ledIndex, led] of ledStates) {
+    if (ledIndex < state.ledStart || ledIndex > state.ledEnd) continue;
+    const factor = led.currentBrightness / 255;
+    const c = acquireColor();
+    c[0] = Math.round(led.r * factor);
+    c[1] = Math.round(led.g * factor);
+    c[2] = Math.round(led.b * factor);
+    colorMap.set(ledIndex, c);
   }
-  return map;
+  return colorMap;
 }
 
 function updateVisualization() {
   const map = buildLedColorMap();
   for (let i = 0; i < ledElements.length; i++) {
     const el = ledElements[i];
+    const viz = ledVizState[i];
     const c = map.get(i);
-    if (c === undefined || c === null) {
-      el.classList.add("inactive");
-      el.classList.remove("active");
-      el.style.backgroundColor = "";
+    if (c === undefined) {
+      if (viz.active) {
+        el.classList.add("inactive");
+        el.classList.remove("active");
+        viz.active = false;
+      }
+      if (viz.r !== 0) {
+        el.style.backgroundColor = "";
+        viz.r = 0; viz.g = 0; viz.b = 0;
+      }
     } else {
-      el.classList.remove("inactive");
-      el.classList.toggle("active", c[0] > 0 || c[1] > 0 || c[2] > 0);
-      el.style.backgroundColor = "rgb(" + c[0] + "," + c[1] + "," + c[2] + ")";
+      const isActive = c[0] > 0 || c[1] > 0 || c[2] > 0;
+      if (isActive !== viz.active) {
+        el.classList.toggle("active", isActive);
+        el.classList.toggle("inactive", !isActive);
+        viz.active = isActive;
+      }
+      if (c[0] !== viz.r || c[1] !== viz.g || c[2] !== viz.b) {
+        el.style.backgroundColor = "rgb(" + c[0] + "," + c[1] + "," + c[2] + ")";
+        viz.r = c[0]; viz.g = c[1]; viz.b = c[2];
+      }
     }
   }
 }
@@ -876,8 +859,8 @@ function buildWledPayload() {
   const map = buildLedColorMap();
   const i = [];
   for (let idx = state.ledStart; idx <= state.ledEnd; idx++) {
-    const c = map.get(idx) || [0, 0, 0];
-    i.push(idx, c);
+    const c = map.get(idx);
+    if (c) i.push(idx, c);
   }
   return { seg: [{ id: 0, i: i }] };
 }
@@ -926,40 +909,37 @@ function startFadeLoop() {
   state.fadeLoopRunning = true;
 
   const loop = () => {
-    if (state.activeNotes.size === 0) {
+    if (ledStates.size === 0) {
       state.fadeLoopRunning = false;
       return;
     }
     const now = performance.now();
     let dirty = false;
-    for (const [note, n] of state.activeNotes) {
-      if (!n.isFading) {
-        if (state.fadeOutMs >= MAX_FADE_MS) continue;
-        n.startBrightness = n.currentBrightness;
-        n.fadeStartTime = now;
-        n.isFading = true;
-        dirty = true;
-        continue;
-      }
+    for (const [ledIndex, led] of ledStates) {
       if (state.fadeOutMs >= MAX_FADE_MS) {
-        n.isFading = false;
+        led.latched = true;
+        continue;
+      }
+      if (led.latched) {
+        led.startTime = now;
+        led.startBrightness = led.currentBrightness;
+        led.latched = false;
         dirty = true;
         continue;
       }
-      const elapsed = now - n.fadeStartTime;
+      const elapsed = now - led.startTime;
       if (elapsed >= state.fadeOutMs) {
-        state.activeNotes.delete(note);
+        ledStates.delete(ledIndex);
         dirty = true;
       } else {
-        n.currentBrightness = n.startBrightness * (1 - elapsed / state.fadeOutMs);
+        led.currentBrightness = led.startBrightness * (1 - elapsed / state.fadeOutMs);
         dirty = true;
       }
     }
-    if (dirty) {
-      updateVisualization();
-      scheduleWledSend();
+    if (dirty && now - state.lastRenderTime >= MIN_SEND_INTERVAL) {
+      render();
     }
-    if (state.activeNotes.size > 0) {
+    if (ledStates.size > 0) {
       requestAnimationFrame(loop);
     } else {
       state.fadeLoopRunning = false;
@@ -975,28 +955,41 @@ function noteOn(note, velocity) {
   if (state.whiteKeysOnly && !isWhiteKey(note)) return;
   if (velocity === 0) { noteOff(note); return; }
 
+  const seg = getNoteSegment(note);
+  if (!seg) return;
   const brightness = velocityToBrightness(velocity);
-  state.activeNotes.set(note, {
-    r: state.color.r,
-    g: state.color.g,
-    b: state.color.b,
-    startBrightness: brightness,
-    currentBrightness: brightness,
-    isFading: false,
-    fadeStartTime: 0,
-  });
-  updateVisualization();
-  scheduleWledSend();
+  const now = performance.now();
+  const latched = state.fadeOutMs >= MAX_FADE_MS;
+  for (let i = seg.start; i <= seg.end; i++) {
+    if (i < state.ledStart || i > state.ledEnd) continue;
+    ledStates.set(i, {
+      startTime: now,
+      startBrightness: brightness,
+      currentBrightness: brightness,
+      r: state.color.r,
+      g: state.color.g,
+      b: state.color.b,
+      latched: latched,
+    });
+  }
+  render();
 }
 
 function noteOff(note) {
-  const n = state.activeNotes.get(note);
-  if (!n) return;
+  const seg = getNoteSegment(note);
+  if (!seg) return;
   if (state.fadeOutMs >= MAX_FADE_MS) return;
-  n.startBrightness = n.currentBrightness;
-  n.fadeStartTime = performance.now();
-  n.isFading = true;
-  startFadeLoop();
+  const now = performance.now();
+  let touched = false;
+  for (let i = seg.start; i <= seg.end; i++) {
+    const led = ledStates.get(i);
+    if (!led) continue;
+    led.startBrightness = led.currentBrightness;
+    led.startTime = now;
+    led.latched = false;
+    touched = true;
+  }
+  if (touched) startFadeLoop();
 }
 
 /* ============================================================
@@ -1229,7 +1222,7 @@ async function testWledConnection() {
    Reset / display
    ============================================================ */
 function resetActiveNotes() {
-  state.activeNotes.clear();
+  ledStates.clear();
   if (state.pendingTimeout) {
     clearTimeout(state.pendingTimeout);
     state.pendingTimeout = null;
@@ -1245,6 +1238,7 @@ function resetActiveNotes() {
     body: JSON.stringify({ seg: [{ id: 0, i: i }] }),
   }).catch(() => {});
   state.lastSendTime = performance.now();
+  state.lastRenderTime = performance.now();
   updateVisualization();
 }
 
@@ -1362,16 +1356,15 @@ function bindUi() {
 function init() {
   buildLedVisuals();
   bindUi();
-  document.addEventListener("mouseup", (e) => {
-    if (e.button !== 0) return;
-    if (mouseHeldNote !== null) {
-      noteOff(mouseHeldNote);
-      mouseHeldNote = null;
-    }
-  });
   updateKeyRangeDisplay();
   renderMonitor();
+  state.lastRenderTime = performance.now();
   updateVisualization();
+
+  if (window.location.hostname) {
+    state.wledIp = window.location.hostname;
+    dom.wledIp.value = window.location.hostname;
+  }
 
   if (navigator.requestMIDIAccess) {
     setMidiStatus("warn", "Request access");

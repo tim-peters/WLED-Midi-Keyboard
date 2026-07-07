@@ -25,32 +25,27 @@ Browser tool that connects a MIDI keyboard in real time to a WLED-controlled LED
 | **Browser** | Chrome 90+ or Edge 90+ (Web MIDI API, not available in Firefox) |
 | **MIDI keyboard** | USB MIDI controller, tested with Donner DMK 25 Pro |
 | **WLED** | Reachable on the local network, JSON API enabled (default) |
-| **CORS Unblock** | Browser extension (see below — required) |
 
 ---
 
 ## How-To
 
-### 1. Install CORS Unblock (Required!)
+### 1. Upload to WLED
 
-⚠️ **Without this extension, communication with WLED will not work.** The browser blocks cross-origin requests from the `file://` page (or another domain) to the WLED IP by default. The WLED device does respond, but the browser discards the response — the status stays on "Not reachable" permanently, even though the device is pingable.
+The page runs as a static HTML file inside the WLED filesystem — no install, no build, no extra server. The WLED device serves the file itself, so the page is on the **same origin** as the JSON API and CORS is a non-issue.
 
-**Installation:**
-- **Chrome / Edge:** Install [“CORS Unblock”](https://chromewebstore.google.com/detail/cors-unblock/lfhmikememgdcahcdlaciloancbhjino) from the Chrome Web Store (or "Allow CORS: Access-Control-Allow-Origin")
-- **Firefox:** "CORS Everywhere" or "CORS Unblock"
+1. Open the WLED web UI (e.g. `http://192.168.x.x`)
+2. Click the **File Editor** button in the UI (located just under the color palette)
+3. Upload `keyboard-wled.html` from this repo
+4. The page is now reachable at `http://<wled-ip>/keyboard-wled.html`
 
-After installation, restart the browser once and keep the extension enabled for the page (default).
+### 2. Open the page
 
-### 2. Open the file
-
-Open `keyboard-wled.html` in Chrome or Edge:
-- **Double-click** the file
-- Or directly: `file:///path/to/keyboard-wled.html` in the address bar
-- Or via a local web server, e.g. `python3 -m http.server` in the file's directory, then `http://localhost:8000`
+Navigate to `http://<wled-ip>/keyboard-wled.html` in Chrome or Edge. Bookmark it for next time.
 
 ### 3. Connect to WLED
 
-1. Enter the IP of the WLED device in the **"WLED IP"** field (e.g. `192.168.178.183`)
+1. The **"WLED IP"** field is prefilled with the page's host (the WLED device). Change it only if the WLED API is on a different host.
 2. Click the **"Connect"** button — tests via `GET /json/info`
 3. Status should switch to green "Connected"
 
@@ -64,6 +59,16 @@ Open `keyboard-wled.html` in Chrome or Edge:
 ### 5. Play
 
 Press keys — the LEDs light up in real time; on release the brightness fades to 0 over the configured fade-out time.
+
+---
+
+### Alternative: run the file from your computer
+
+For development or if you don't want to upload to WLED, you can also open `keyboard-wled.html` directly:
+- **Double-click** the file → `file:///path/to/keyboard-wled.html`
+- Or via a local web server, e.g. `python3 -m http.server` in the file's directory, then `http://localhost:8000`
+
+⚠️ In this case the page is served from a different origin than the WLED API, so the browser will block the JSON requests. Install e.g. [CORS Unblock](https://chromewebstore.google.com/detail/cors-unblock/lfhmikememgdcahcdlaciloancbhjino) (Chrome/Edge) or "CORS Everywhere" (Firefox) to allow them. **This is not needed when the page is hosted on WLED itself.**
 
 ---
 
@@ -108,7 +113,7 @@ Other controllers: simply adjust the `Ch` and `CC` values in the cells. `Ch = 0`
 
 ### "WLED not reachable" despite correct IP
 
-1. **CORS Unblock installed and active?** Most common cause.
+1. **Page hosted on the WLED device?** If you opened the HTML from disk or a local server, the browser blocks the cross-origin requests — upload the file to WLED via the File Editor, or install a CORS unblocker. See [Alternative: run the file from your computer](#alternative-run-the-file-from-your-computer).
 2. **IP address correct?** Test directly in the browser: `http://<ip>/json/info` must return JSON.
 3. **Same network?** Some routers have AP isolation (Wi-Fi clients cannot see each other).
 4. **WLED firmware up to date?** The JSON API has been standard for a long time, but old versions may cause issues.
@@ -153,6 +158,6 @@ Other controllers: simply adjust the `Ch` and `CC` values in the cells. `Ch = 0`
 ## Known limitations
 
 - **Chrome/Edge only** because of the Web MIDI API
-- **CORS Unblock required** for `file://` or cross-origin
+- **Hosted on the WLED filesystem** — needs the File Editor / filesystem-write access on the device; occupies a few KB of flash
 - **No native WLED integration** — external tool, not a usermod
 - **Visualization limited to 500 LEDs** (browser performance protection)
