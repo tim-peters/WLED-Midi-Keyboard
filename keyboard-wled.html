@@ -42,6 +42,7 @@
     border: 1px solid #262b33;
     border-radius: 8px;
     padding: 16px 18px;
+    position: relative;
   }
   .card-wide {
     grid-column: 1 / -1;
@@ -123,6 +124,18 @@
   button.ghost:hover { background: #1f242b; color: #e6e8eb; }
   button.ghost:active { background: #262b33; }
   button.ghost:disabled { background: transparent; color: #4b5260; border-color: #1f242b; }
+  .corner-btn {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    font-size: 16px;
+    line-height: 1;
+  }
+  .corner-btn.on { color: #4ade80; border-color: #4ade80; background: rgba(74, 222, 128, 0.08); }
+  .corner-btn.on:hover { background: rgba(74, 222, 128, 0.14); }
   .value {
     flex: 0 0 90px;
     text-align: right;
@@ -438,6 +451,7 @@
         <span id="wled-status" class="status gray">Not connected</span>
       </div>
       <p class="help">Test via <code>GET /json/info</code></p>
+      <button id="wled-power" class="ghost corner-btn" type="button" title="Toggle WLED power (device + selected segment)" aria-label="Toggle WLED power">⏻</button>
     </div>
 
     <div class="card">
@@ -493,6 +507,11 @@
     <div class="card">
       <h2>LED Range &amp; Mapping</h2>
       <div class="row">
+        <label for="segment-id">WLED Segment</label>
+        <input type="number" id="segment-id" min="0" value="0">
+        <span class="value" id="segment-id-val">0</span>
+      </div>
+      <div class="row">
         <label for="led-start">LED Start</label>
         <input type="number" id="led-start" min="0" value="0">
         <span class="value" id="led-start-val">0</span>
@@ -502,7 +521,7 @@
         <input type="number" id="led-end" min="0" value="67">
         <span class="value" id="led-end-val">67</span>
       </div>
-      <p class="help">0-based, inclusive · any strip length</p>
+      <p class="help">LEDs: 0-based, inclusive · any strip length. Segment: WLED segment id to write to.</p>
       <div class="divider"></div>
       <h2>Hardware Mapping</h2>
       <div class="cc-grid">
@@ -574,11 +593,13 @@ const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", 
 const state = {
   wledIp: "",
   wledOk: false,
+  wledOn: false,
   midiAccess: null,
   midiInput: null,
 
   ledStart: 0,
   ledEnd: 67,
+  segmentId: 0,
 
   fadeOutMs: 300,
   maxBrightnessPct: 100,
@@ -611,6 +632,7 @@ const dom = {
   wledIp:        $("wled-ip"),
   wledConnect:   $("wled-connect"),
   wledStatus:    $("wled-status"),
+  wledPower:     $("wled-power"),
   midiDevice:    $("midi-device"),
   midiStatus:    $("midi-status"),
   midiRequest:   $("midi-request"),
@@ -618,6 +640,8 @@ const dom = {
   ledEnd:        $("led-end"),
   ledStartVal:   $("led-start-val"),
   ledEndVal:     $("led-end-val"),
+  segmentId:     $("segment-id"),
+  segmentIdVal:  $("segment-id-val"),
   fadeOut:       $("fade-out"),
   fadeOutVal:    $("fade-out-val"),
   brightness:    $("brightness"),
@@ -962,7 +986,7 @@ function buildWledPayload() {
     const c = map.get(idx);
     if (c) i.push(idx, c);
   }
-  return { seg: [{ id: 0, i: i }] };
+  return { seg: [{ id: state.segmentId, i: i }] };
 }
 
 function sendToWledNow() {
@@ -1340,7 +1364,7 @@ function resetActiveNotes() {
   fetch("http://" + state.wledIp + "/json/state", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ seg: [{ id: 0, i: i }] }),
+    body: JSON.stringify({ seg: [{ id: state.segmentId, i: i }] }),
   }).catch(() => {});
   state.lastSendTime = performance.now();
   state.lastRenderTime = performance.now();
@@ -1369,6 +1393,28 @@ function bindUi() {
   dom.wledIp.addEventListener("keydown", (e) => {
     if (e.key === "Enter") testWledConnection();
   });
+  dom.wledPower.addEventListener("click", () => {
+    const on = !state.wledOn;
+    state.wledOn = on;
+    dom.wledPower.classList.toggle("on", on);
+    if (!state.wledIp) {
+      setWledStatus(false, "no IP");
+      return;
+    }
+    fetch("http://" + state.wledIp + "/json/state", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ on: on, seg: [{ id: state.segmentId, on: on }] }),
+    })
+      .then((res) => {
+        if (!res.ok && res.status !== 0) {
+          setWledStatus(false, "HTTP " + res.status);
+        } else {
+          setWledStatus(true);
+        }
+      })
+      .catch(() => setWledStatus(false, "unreachable"));
+  });
 
   dom.midiRequest.addEventListener("click", requestMidiAccess);
   dom.midiDevice.addEventListener("change", () => {
@@ -1392,6 +1438,12 @@ function bindUi() {
     dom.ledEndVal.textContent = v;
     rebuildVisualization();
     resetActiveNotes();
+  });
+  dom.segmentId.addEventListener("input", () => {
+    let v = clamp(parseInt(dom.segmentId.value, 10) || 0, 0, 99999);
+    state.segmentId = v;
+    dom.segmentId.value = v;
+    dom.segmentIdVal.textContent = v;
   });
 
   dom.fadeOut.addEventListener("input", () => {
