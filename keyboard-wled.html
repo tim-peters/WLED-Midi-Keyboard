@@ -584,6 +584,7 @@ const MIN_SEND_INTERVAL = 33; // ms → 30 req/s
 const MAX_MONITOR_ENTRIES = 50;
 const MAX_VIS_LEDS = 500;     // Cap for visualization (performance)
 const MAX_FADE_MS = 3000;     // Fade-out slider max (latch mode)
+const WLED_AUTO_OFF_MS = 5000; // Auto power-off after this much darkness/inactivity
 
 const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
@@ -594,6 +595,7 @@ const state = {
   wledIp: "",
   wledOk: false,
   wledOn: false,
+  wledOffTimer: null,
   midiAccess: null,
   midiInput: null,
 
@@ -907,6 +909,8 @@ function flashLed(ledIndex) {
     b: state.color.b,
     latched: state.fadeOutMs >= MAX_FADE_MS,
   });
+  cancelWledAutoOff();
+  ensureWledOn();
   render();
   startFadeLoop();
 }
@@ -1025,6 +1029,45 @@ function scheduleWledSend() {
   }
 }
 
+function setWledPower(on) {
+  state.wledOn = on;
+  dom.wledPower.classList.toggle("on", on);
+  cancelWledAutoOff();
+  if (!state.wledIp) return;
+  fetch("http://" + state.wledIp + "/json/state", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ on: on, seg: [{ id: state.segmentId, on: on }] }),
+  })
+    .then((res) => {
+      if (!res.ok && res.status !== 0) {
+        setWledStatus(false, "HTTP " + res.status);
+      } else {
+        setWledStatus(true);
+      }
+    })
+    .catch(() => setWledStatus(false, "unreachable"));
+}
+
+function ensureWledOn() {
+  if (!state.wledOn) setWledPower(true);
+}
+
+function scheduleWledAutoOff() {
+  cancelWledAutoOff();
+  state.wledOffTimer = setTimeout(() => {
+    state.wledOffTimer = null;
+    if (ledStates.size === 0) setWledPower(false);
+  }, WLED_AUTO_OFF_MS);
+}
+
+function cancelWledAutoOff() {
+  if (state.wledOffTimer) {
+    clearTimeout(state.wledOffTimer);
+    state.wledOffTimer = null;
+  }
+}
+
 /* ============================================================
    Fade engine
    ============================================================ */
@@ -1035,6 +1078,7 @@ function startFadeLoop() {
   const loop = () => {
     if (ledStates.size === 0) {
       state.fadeLoopRunning = false;
+      scheduleWledAutoOff();
       return;
     }
     const now = performance.now();
@@ -1067,6 +1111,7 @@ function startFadeLoop() {
       requestAnimationFrame(loop);
     } else {
       state.fadeLoopRunning = false;
+      scheduleWledAutoOff();
     }
   };
   requestAnimationFrame(loop);
@@ -1096,6 +1141,8 @@ function noteOn(note, velocity) {
       latched: latched,
     });
   }
+  cancelWledAutoOff();
+  ensureWledOn();
   render();
 }
 
@@ -1394,26 +1441,7 @@ function bindUi() {
     if (e.key === "Enter") testWledConnection();
   });
   dom.wledPower.addEventListener("click", () => {
-    const on = !state.wledOn;
-    state.wledOn = on;
-    dom.wledPower.classList.toggle("on", on);
-    if (!state.wledIp) {
-      setWledStatus(false, "no IP");
-      return;
-    }
-    fetch("http://" + state.wledIp + "/json/state", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ on: on, seg: [{ id: state.segmentId, on: on }] }),
-    })
-      .then((res) => {
-        if (!res.ok && res.status !== 0) {
-          setWledStatus(false, "HTTP " + res.status);
-        } else {
-          setWledStatus(true);
-        }
-      })
-      .catch(() => setWledStatus(false, "unreachable"));
+    setWledPower(!state.wledOn);
   });
 
   dom.midiRequest.addEventListener("click", requestMidiAccess);
