@@ -1,8 +1,12 @@
-# Keyboard → WLED
+# 🎹 Keyboard → WLED
 
-Browser tool that connects a MIDI keyboard in real time to a WLED-controlled LED strip. Key press → LED segment lights up, release → configurable fade-out. Polyphonic, velocity-sensitive, with live visualization.
+> Play a MIDI keyboard (or tap on your phone) — your LED strip lights up in real time.
 
 ![Demo](demo.gif)
+
+**WLED MIDI Keyboard** is a single HTML file that bridges any USB MIDI controller with a [WLED](https://kno.wled.ge/)-controlled LED strip — polyphonic, velocity-sensitive, zero install. No server, no build step, no dependencies. Just open the page and play.
+
+No MIDI keyboard? No problem — the built-in touch visualization works on any smartphone or tablet and lets you control WLED directly from the browser.
 
 ---
 
@@ -14,15 +18,15 @@ Browser tool that connects a MIDI keyboard in real time to a WLED-controlled LED
 
 ## Features
 
-- **Polyphonic** — up to 25 keys at once, each with its own fade state
-- **Velocity-sensitive** — strike strength scales brightness (can be disabled)
-- **White-keys-only mode** — black keys can optionally be ignored
-- **Octave offset** — shift the keyboard in semitones
-- **Hardware CC mapping** — three knobs of a MIDI controller for color, brightness, fade-out
-- **Variable strip length** — LED range freely configurable (no hard maximum)
-- **Live visualization** — individual LEDs in the browser, in sync with WLED
-- **MIDI monitor** — debug view for incoming MIDI messages (collapsible)
-- **30 req/s throttle** — WLED-compliant, max. one request per 33 ms
+- 🎵 **Polyphonic** — up to 25 simultaneous keys, each with its own independent fade state
+- 🎚️ **Velocity-sensitive** — strike strength scales brightness (can be disabled)
+- 🤍 **White-keys-only mode** — optionally ignore black keys for simpler LED mapping
+- 🔢 **Octave offset** — shift the active MIDI range by ±36 semitones to fit your keyboard
+- 🎛️ **Hardware CC mapping** — map three knobs of any MIDI controller to color, brightness, and fade-out
+- 📏 **Variable strip length** — LED range freely configurable, no hard maximum
+- 👁️ **Live visualization** — individual LEDs rendered in the browser, in sync with WLED
+- 📱 **Touch control** — tap the visualization directly (great for smartphones without a MIDI keyboard)
+- 🔍 **MIDI monitor** — collapsible debug view for incoming MIDI messages
 
 ---
 
@@ -30,84 +34,99 @@ Browser tool that connects a MIDI keyboard in real time to a WLED-controlled LED
 
 | Component | Requirement |
 |---|---|
-| **Browser** | Chrome 90+ or Edge 90+ (Web MIDI API, not available in Firefox) |
-| **MIDI keyboard** | USB MIDI controller, tested with Donner DMK 25 Pro |
-| **WLED** | Reachable on the local network, JSON API enabled (default) |
+| **Browser** | Chrome 90+ or Edge 90+ (Web MIDI API — not available in Firefox) |
+| **MIDI keyboard** | Any USB MIDI controller (tested with Donner DMK 25 Pro) |
+| **WLED device** | Reachable on the local network, JSON API enabled (default) |
+
+> **No MIDI keyboard?** You can still use the touch visualization in any modern browser — including Safari on iOS — to trigger LEDs by tapping directly on the strip preview.
 
 ---
 
-## How-To
+## Getting Started
 
-### 1. Upload to WLED
+### Option A — Run directly from WLED *(recommended)*
 
-The page runs as a static HTML file inside the WLED filesystem — no install, no build, no extra server. The WLED device serves the file itself, so the page is on the **same origin** as the JSON API and CORS is a non-issue.
+The page is a static HTML file that lives inside the WLED filesystem. The WLED device serves it, so the page is on the **same origin** as the JSON API — no CORS, no extra server.
 
-1. Open the WLED web UI (e.g. `http://192.168.x.x`)
-2. Click the **File Editor** button in the UI (located just under the color palette)
+1. Open the WLED web UI (`http://<wled-ip>`)
+2. Click **File Editor** (just below the color palette)
 3. Upload `keyboard-wled.html` from this repo
-4. The page is now reachable at `http://<wled-ip>/keyboard-wled.html`
+4. Open `http://<wled-ip>/keyboard-wled.html` in Chrome or Edge
 
-### 2. Open the page
+> ⚠️ **MIDI requires a secure context.** Chrome blocks Web MIDI on plain `http://` addresses (other than `localhost`). If MIDI shows *"Blocked: insecure context"*, use one of the two sub-options below:
 
-Navigate to `http://<wled-ip>/keyboard-wled.html` in Chrome or Edge. Bookmark it for next time.
+**A1 — Chrome insecure-origin flag (dev / quick test only)**
 
-### 3. Connect to WLED
+1. Open `chrome://flags/#unsafely-treat-insecure-origin-as-secure`
+2. Add `http://<wled-ip>`
+3. Restart Chrome
 
-1. The **"WLED IP"** field is prefilled with the page's host (the WLED device). Change it only if the WLED API is on a different host.
-2. Click the **"Connect"** button — tests via `GET /json/info`
-3. Status should switch to green "Connected"
+Not recommended for everyday use — doesn't work on phones or other browsers.
 
-### 4. Enable MIDI
+**A2 — Reverse proxy via localhost (recommended)**
 
-1. Click the **"Request"** button in the MIDI card
-2. The browser asks for MIDI permission — confirm
-3. Pick a device (e.g. "Donner DMK 25 Pro") from the dropdown
-4. Status switches to green "Connected"
+Run a one-liner on your computer to tunnel the WLED address through `localhost` — no changes to the device needed:
 
-### 5. Play
+```bash
+# socat (install once: brew install socat)
+socat TCP-LISTEN:8000,reuseaddr,fork TCP:192.168.x.x:80
+```
 
-Press keys — the LEDs light up in real time; on release the brightness fades to 0 over the configured fade-out time.
+```bash
+# or Caddy (install once: brew install caddy)
+echo ':8000 { reverse_proxy 192.168.x.x:80 }' > Caddyfile && caddy run
+```
+
+Then open `http://localhost:8000/keyboard-wled.html`. `localhost` is a secure context → MIDI works.
 
 ---
 
-### Alternative: run the file from your computer
+### Option B — Run locally from your computer
 
-For development, the page can be opened from disk or a local web server:
-- **Double-click** the file → `file:///path/to/keyboard-wled.html`
-- Or via a local web server, e.g. `python3 -m http.server` in the file's directory, then `http://localhost:8000`
+Open the file directly from disk or a local web server:
 
-The `WLED IP` field is prefilled with the page's own host, so edit it to the WLED device's IP (e.g. `192.168.x.x`) when serving locally — otherwise the page talks to itself.
+```bash
+# Quick local server
+python3 -m http.server
+# → open http://localhost:8000/keyboard-wled.html
+```
 
-⚠️ **MIDI won't work** when the page is served from `http://<wled-ip>` (insecure context — see ["MIDI access denied — secure context required"](#midi-access-denied--secure-context-required)). Use a local proxy on `http://localhost` or the Chrome flag workaround.
+Or just double-click `keyboard-wled.html` to open it as a `file:///` URL.
+
+> **Set the WLED IP manually** — the field is prefilled with the page's own host, so change it to your WLED device's IP (e.g. `192.168.x.x`).
+
+> ⚠️ **CORS:** When running locally, the browser will block cross-origin requests to WLED. Either use the local server approach (`localhost` counts as secure) combined with a reverse proxy, or temporarily install a CORS-unblock browser extension during development.
 
 ---
 
 ## Configuration
 
-### LED range
+### LED Range
 
-| Field | Default | Function |
+| Field | Default | Description |
 |---|---|---|
 | **LED Start** | `0` | First LED index of the controlled range |
-| **LED End** | `78` | Last LED index (inclusive) |
+| **LED End** | `67` | Last LED index (inclusive) |
 
-No hard maximum — works with any strip length. The visualization shows up to 500 LEDs.
+Works with any strip length. The browser visualization renders up to 500 LEDs.
 
 ### Keyboard
 
-- **Offset** (slider, −36 … +36 semitones): shifts the active MIDI range. Default `0` = Donner's default octave C3–C5. `+` = lower, `−` = higher.
-- **White keys only** (default on): ignores C#, D#, F#, G#, A#. The 15 white keys per range are distributed evenly across the LED range.
-- **Apply velocity sensitivity** (default on): velocity scales the brightness. Off = always 100 % of the brightness slider setting.
+| Setting | Default | Description |
+|---|---|---|
+| **Offset** | `0` | Shift active MIDI range (−36 … +36 semitones). `0` = C3–C5 (Donner default) |
+| **White keys only** | On | Distribute only the 15 white keys per octave across the LED range |
+| **Velocity sensitivity** | On | Scale brightness by strike strength. Off = always 100% |
 
 ### Controls
 
-- **Fade-Out** (0–3000 ms): decay time after release, default `300 ms`
-- **Brightness** (0–100 %): maximum brightness at velocity 127, default `100 %`
-- **Color** (RGB color picker): default `#ff6400`
+| Control | Range | Default |
+|---|---|---|
+| **Color** | RGB | `#ff6400` |
+| **Brightness** | 0–100% | `100%` |
+| **Fade-Out** | 0–3000 ms | `300 ms` |
 
-### MIDI CC mapping (Donner DMK 25 Pro)
-
-The DMK 25 Pro sends CC #7 on channels 1/2/3 for the three knobs. Default mapping in the app:
+### MIDI CC Mapping (Donner DMK 25 Pro default)
 
 | Knob | Ch | CC | Function |
 |---|---|---|---|
@@ -115,7 +134,7 @@ The DMK 25 Pro sends CC #7 on channels 1/2/3 for the three knobs. Default mappin
 | 2 | 2 | 7 | **Brightness** |
 | 3 | 3 | 7 | **Fade-Out** |
 
-Other controllers: simply adjust the `Ch` and `CC` values in the cells. `Ch = 0` matches on any channel. Check the current mapping in the MIDI monitor (expand the details).
+Other controllers: adjust the `Ch` and `CC` values in the UI. `Ch = 0` matches any channel. Use the MIDI monitor to identify what your controller sends.
 
 ---
 
@@ -123,95 +142,65 @@ Other controllers: simply adjust the `Ch` and `CC` values in the cells. `Ch = 0`
 
 ### "WLED not reachable" despite correct IP
 
-1. **Page hosted on the WLED device?** If you opened the HTML from disk or a local server, the browser blocks the cross-origin requests — upload the file to WLED via the File Editor, or install a CORS unblocker. See [Alternative: run the file from your computer](#alternative-run-the-file-from-your-computer).
-2. **IP address correct?** Test directly in the browser: `http://<ip>/json/info` must return JSON.
-3. **Same network?** Some routers have AP isolation (Wi-Fi clients cannot see each other).
-4. **WLED firmware up to date?** The JSON API has been standard for a long time, but old versions may cause issues.
+- **CORS issue?** If the page is served locally, the browser blocks cross-origin requests to WLED. Upload the file to WLED (Option A) or use a reverse proxy.
+- **Wrong IP?** Test directly: `http://<ip>/json/info` should return JSON.
+- **AP isolation?** Some routers prevent Wi-Fi clients from seeing each other. Try wired or check router settings.
+- **Old firmware?** The JSON API has been standard for years, but very old WLED versions may behave differently.
 
-### "MIDI access denied" — secure context required
+### "MIDI access denied — secure context required"
 
-The Web MIDI API is only available in a **secure context**: `https://` (any host, self-signed is fine), or `http://localhost` / `http://127.0.0.1`. A page served from WLED at `http://192.168.x.x` is **not** a secure context, so `navigator.requestMIDIAccess()` throws a `SecurityError` even though the page itself loads. The in-app status will show *"Blocked: insecure context"*.
-
-WLED does not (yet) support HTTPS hosting on the device itself, so pick one of the workarounds below.
-
-**Workaround A — local proxy on your computer (recommended for normal use)**
-
-The page is already uploaded to WLED (Step 1). The trick is to reach it through `http://localhost:8000` so the browser sees a secure context — a simple TCP tunnel or reverse-proxy from your computer to WLED does the job. No changes to the WLED device, no changes to the page.
-
-```bash
-# Option 1: socat — one terminal (needs `brew install socat` once)
-socat TCP-LISTEN:8000,reuseaddr,fork TCP:192.168.x.x:80
-```
-
-```bash
-# Option 2: Caddy — one terminal (needs `brew install caddy` once)
-cat > Caddyfile <<EOF
-:8000 {
-  reverse_proxy 192.168.x.x:80
-}
-EOF
-caddy run
-```
-
-Then open `http://localhost:8000/keyboard-wled.html` in Chrome/Edge. `localhost` is a secure context → MIDI works. Leave the prefilled `WLED IP` as-is; the proxy is transparent.
-
-**Workaround B — Chrome flag (development only)**
-
-Tell Chrome to treat the WLED URL as secure, without changing anything else:
-
-1. Open `chrome://flags/#unsafely-treat-insecure-origin-as-secure` in Chrome
-2. Add the WLED URL, e.g. `http://192.168.x.x`
-3. Restart Chrome
-4. Open `http://<wled-ip>/keyboard-wled.html` — MIDI works
-
-**Cons:** dev only, requires Chrome restart with the flag, doesn't work on phones or other browsers, and the flag setting is per-Chrome-install. Use Workaround A for normal use.
-
-**Workaround C — install a CORS-style extension as a fallback**
-
-Some users report that the "CORS Unblock" / "Allow CORS" extensions also unblock Web MIDI on insecure origins. This is not officially documented behavior and may break with future Chrome versions. Prefer Workaround A.
-
----
+The Web MIDI API only works on `https://` or `http://localhost`. A plain `http://<ip>` page is not a secure context. Use Option A1 (reverse proxy) or A2 (Chrome flag) from the Getting Started section.
 
 ### "MIDI access denied" (other causes)
 
-- **Use Chrome or Edge** — Firefox has no Web MIDI API.
-- Check the browser's MIDI permission in the browser settings (site permissions) and set it to "Allow".
+- **Use Chrome or Edge** — Firefox does not support the Web MIDI API.
+- Check site permissions in your browser settings and set MIDI to "Allow".
 
 ### Keys light up at the wrong position
 
-- **Adjust the offset**: ±12 semitones = one octave. If your keyboard sends in a different octave (e.g. via the octave buttons on the controller), adjust the value here.
-- **Check the LED range** — it must match the physical strip. If the leftmost LED of your strip is not at index 0, adjust the start value.
-- **Disable white keys only** if you also want to control black keys.
+- **Adjust the offset** — ±12 semitones = one octave.
+- **Check the LED range** — make sure Start/End match your physical strip.
+- **Disable white-keys-only** if you want black keys to trigger LEDs too.
 
 ### Hardware knobs have no effect
 
 1. Expand the **MIDI Monitor** at the bottom of the page.
-2. Turn a knob — do `CC` entries appear? If not: the knobs are not sending CC messages (enable them in the controller's setup).
-3. If yes: compare the displayed `Ch` and `CC` values with the values in the three knob cells and adjust if needed.
+2. Turn a knob — do `CC` entries appear?
+   - **No:** the knobs aren't sending CC (check the controller's setup menu).
+   - **Yes:** compare the `Ch` and `CC` values shown with those in the knob cells and adjust.
 
-### Fade-out stutters or breaks off
+### Fade-out stutters or cuts off
 
-- Close other tabs/programs that claim MIDI devices
-- Enable browser hardware acceleration (`chrome://settings/system`)
-- Close other web pages with high CPU load (otherwise the rAF loop gets throttled)
-
----
-
-## Technical details
-
-- **A single HTML file** — no build step, no dependencies, no server component
-- **Latency:** ≤ 33 ms (throttle at 30 req/s)
-- **Polyphonic fade:** `Map<note, {brightness, fadeStartTime, isFading}>`, `requestAnimationFrame` loop. Each note fades independently — simultaneous keys do not block each other.
-- **Retriggering:** a new strike during fade cancels the fade and restarts with the new velocity.
-- **WLED payload format:** `{ "seg": [{ "id": 0, "i": [idx, [r,g,b], idx, [r,g,b], …] }] }`
-- **Throttle implementation:** timestamp comparison + `setTimeout` to batch multiple changes within a 33 ms window
-- **Visualization cap:** 500 divs (performance). For longer strips the visualization is truncated, but the WLED communication works with the full length.
+- Close other tabs or apps that claim the MIDI device.
+- Enable hardware acceleration in Chrome (`chrome://settings/system`).
+- Close CPU-heavy tabs — the `requestAnimationFrame` loop gets throttled under load.
 
 ---
 
-## Known limitations
+## Known Limitations
 
-- **Chrome/Edge only** because of the Web MIDI API
-- **Hosted on the WLED filesystem** — needs the File Editor / filesystem-write access on the device; occupies a few KB of flash
-- **No native WLED integration** — external tool, not a usermod
-- **Visualization limited to 500 LEDs** (browser performance protection)
+- **Chrome / Edge only** for MIDI (Web MIDI API not in Firefox or Safari)
+- **Touch control works in all browsers**, including Safari on iOS
+- **MIDI requires a secure context** — needs a reverse proxy or Chrome flag when served from WLED over plain HTTP
+- **Visualization capped at 500 LEDs** (browser performance) — WLED communication still uses the full strip length
+- **No native WLED integration** — this is an external tool, not a usermod
+- **Occupies a few KB of flash** on the WLED device's filesystem
+
+---
+
+## Technical Notes
+
+- **Single HTML file** — no build step, no dependencies, no server component
+- **Latency:** ≤ 33 ms (30 req/s throttle)
+- **Polyphonic fade:** `Map<note, {brightness, fadeStartTime, isFading}>` updated via `requestAnimationFrame`. Each note fades independently.
+- **Retriggering:** a new strike during fade cancels it and restarts with the new velocity.
+- **WLED payload:** `{ "seg": [{ "id": 0, "i": [idx, [r,g,b], …] }] }`
+- **Throttle:** timestamp comparison + `setTimeout` to batch changes within a 33 ms window
+
+---
+
+## About this project
+
+This is a hobby project — built for fun, used at home, shared in case it's useful to anyone else. If it saves you some time or lights up your room in a cool way, I'd genuinely appreciate a ⭐ on GitHub. It's a small thing, but it means a lot to a solo developer.
+
+Issues and pull requests are welcome!
