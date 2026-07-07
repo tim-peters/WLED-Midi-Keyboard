@@ -72,11 +72,13 @@ Press keys — the LEDs light up in real time; on release the brightness fades t
 
 ### Alternative: run the file from your computer
 
-For development or if you don't want to upload to WLED, you can also open `keyboard-wled.html` directly:
+For development, the page can be opened from disk or a local web server:
 - **Double-click** the file → `file:///path/to/keyboard-wled.html`
 - Or via a local web server, e.g. `python3 -m http.server` in the file's directory, then `http://localhost:8000`
 
-⚠️ In this case the page is served from a different origin than the WLED API, so the browser will block the JSON requests. Install e.g. [CORS Unblock](https://chromewebstore.google.com/detail/cors-unblock/lfhmikememgdcahcdlaciloancbhjino) (Chrome/Edge) or "CORS Everywhere" (Firefox) to allow them. **This is not needed when the page is hosted on WLED itself.**
+The `WLED IP` field is prefilled with the page's own host, so edit it to the WLED device's IP (e.g. `192.168.x.x`) when serving locally — otherwise the page talks to itself.
+
+⚠️ **MIDI won't work** when the page is served from `http://<wled-ip>` (insecure context — see ["MIDI access denied — secure context required"](#midi-access-denied--secure-context-required)). Use a local proxy on `http://localhost` or the Chrome flag workaround.
 
 ---
 
@@ -126,7 +128,51 @@ Other controllers: simply adjust the `Ch` and `CC` values in the cells. `Ch = 0`
 3. **Same network?** Some routers have AP isolation (Wi-Fi clients cannot see each other).
 4. **WLED firmware up to date?** The JSON API has been standard for a long time, but old versions may cause issues.
 
-### "MIDI access denied"
+### "MIDI access denied" — secure context required
+
+The Web MIDI API is only available in a **secure context**: `https://` (any host, self-signed is fine), or `http://localhost` / `http://127.0.0.1`. A page served from WLED at `http://192.168.x.x` is **not** a secure context, so `navigator.requestMIDIAccess()` throws a `SecurityError` even though the page itself loads. The in-app status will show *"Blocked: insecure context"*.
+
+WLED does not (yet) support HTTPS hosting on the device itself, so pick one of the workarounds below.
+
+**Workaround A — local proxy on your computer (recommended for normal use)**
+
+The page is already uploaded to WLED (Step 1). The trick is to reach it through `http://localhost:8000` so the browser sees a secure context — a simple TCP tunnel or reverse-proxy from your computer to WLED does the job. No changes to the WLED device, no changes to the page.
+
+```bash
+# Option 1: socat — one terminal (needs `brew install socat` once)
+socat TCP-LISTEN:8000,reuseaddr,fork TCP:192.168.x.x:80
+```
+
+```bash
+# Option 2: Caddy — one terminal (needs `brew install caddy` once)
+cat > Caddyfile <<EOF
+:8000 {
+  reverse_proxy 192.168.x.x:80
+}
+EOF
+caddy run
+```
+
+Then open `http://localhost:8000/keyboard-wled.html` in Chrome/Edge. `localhost` is a secure context → MIDI works. Leave the prefilled `WLED IP` as-is; the proxy is transparent.
+
+**Workaround B — Chrome flag (development only)**
+
+Tell Chrome to treat the WLED URL as secure, without changing anything else:
+
+1. Open `chrome://flags/#unsafely-treat-insecure-origin-as-secure` in Chrome
+2. Add the WLED URL, e.g. `http://192.168.x.x`
+3. Restart Chrome
+4. Open `http://<wled-ip>/keyboard-wled.html` — MIDI works
+
+**Cons:** dev only, requires Chrome restart with the flag, doesn't work on phones or other browsers, and the flag setting is per-Chrome-install. Use Workaround A for normal use.
+
+**Workaround C — install a CORS-style extension as a fallback**
+
+Some users report that the "CORS Unblock" / "Allow CORS" extensions also unblock Web MIDI on insecure origins. This is not officially documented behavior and may break with future Chrome versions. Prefer Workaround A.
+
+---
+
+### "MIDI access denied" (other causes)
 
 - **Use Chrome or Edge** — Firefox has no Web MIDI API.
 - Check the browser's MIDI permission in the browser settings (site permissions) and set it to "Allow".

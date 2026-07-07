@@ -1164,6 +1164,10 @@ function attachMidiInput(input) {
 }
 
 async function requestMidiAccess() {
+  if (!window.isSecureContext) {
+    setMidiStatus("err", "Blocked: insecure context (HTTPS or localhost required) — see README");
+    return;
+  }
   if (!navigator.requestMIDIAccess) {
     setMidiStatus("err", "Web MIDI API not available (Chrome/Edge only)");
     return;
@@ -1366,10 +1370,12 @@ function init() {
     dom.wledIp.value = window.location.hostname;
   }
 
-  if (navigator.requestMIDIAccess) {
+  if (!window.isSecureContext) {
+    setMidiStatus("err", "Insecure context — HTTPS or localhost required for MIDI");
+  } else if (navigator.requestMIDIAccess) {
     setMidiStatus("warn", "Request access");
   } else {
-    setMidiStatus("err", "Web MIDI API not available");
+    setMidiStatus("err", "Web MIDI API not available (Chrome/Edge only)");
   }
 }
 
