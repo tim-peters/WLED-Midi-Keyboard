@@ -687,6 +687,7 @@ function buildLedVisuals() {
   dom.ledRow.innerHTML = "";
   ledElements.length = 0;
   ledVizState.length = 0;
+  let touchActive = false;
   for (let i = 0; i < total; i++) {
     const el = document.createElement("div");
     el.className = "led inactive";
@@ -700,10 +701,28 @@ function buildLedVisuals() {
       if ((e.buttons & 1) === 0) return;
       flashLed(i);
     });
+    el.addEventListener("touchstart", (e) => {
+      flashLed(i);
+      touchActive = true;
+      e.preventDefault();
+    }, { passive: false });
+    el.addEventListener("touchend", () => { touchActive = false; });
+    el.addEventListener("touchcancel", () => { touchActive = false; });
     dom.ledRow.appendChild(el);
     ledElements.push(el);
     ledVizState.push({ r: -1, g: -1, b: -1, active: false });
   }
+  dom.ledRow.addEventListener("touchmove", (e) => {
+    if (!touchActive) return;
+    const t = e.touches[0];
+    if (!t) return;
+    const target = document.elementFromPoint(t.clientX, t.clientY);
+    if (target && target.parentNode === dom.ledRow) {
+      const idx = ledElements.indexOf(target);
+      if (idx !== -1) flashLed(idx);
+    }
+    e.preventDefault();
+  }, { passive: false });
   dom.legendEnd.textContent = "LED " + state.ledEnd;
 }
 
