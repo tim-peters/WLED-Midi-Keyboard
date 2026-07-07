@@ -2,6 +2,14 @@
 
 Browser tool that connects a MIDI keyboard in real time to a WLED-controlled LED strip. Key press → LED segment lights up, release → configurable fade-out. Polyphonic, velocity-sensitive, with live visualization.
 
+![Demo](demo.gif)
+
+---
+
+## Screenshots
+
+![Screenshot of the keyboard-wled web UI](screenshot.png)
+
 ---
 
 ## Features
